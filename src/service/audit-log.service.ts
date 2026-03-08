@@ -1,15 +1,92 @@
-import { DocumentDefinition, FilterQuery, UpdateQuery, QueryOptions } from 'mongoose';
-import AuditLog, { AuditLogDocument } from '../model/audit-log.model';
+import crypto from 'crypto';
+import config from 'config';
+import { FilterQuery, QueryOptions } from 'mongoose';
+import { getAuditLogModel, AuditLogDocument } from '../model/audit-log.model';
+import { AuditIntegrityCheckResult, AuditLogPayload } from '../types/audit-log';
 
-export async function createAuditLog (input: DocumentDefinition<AuditLogDocument>) {
-    return AuditLog.create(input)
+const hashSecret = (config.get('auditIntegrity.hashSecret') as string) || 'audit-hash-secret-not-set';
+
+const toCanonicalJson = (value: unknown): string => {
+    if (value === null || typeof value !== 'object') {
+        return JSON.stringify(value);
+    }
+
+    if (Array.isArray(value)) {
+        return `[${value.map((item) => toCanonicalJson(item)).join(',')}]`;
+    }
+
+    const objectValue = value as Record<string, unknown>;
+    const sortedKeys = Object.keys(objectValue).sort();
+    const properties = sortedKeys.map((key) => `${JSON.stringify(key)}:${toCanonicalJson(objectValue[key])}`);
+    return `{${properties.join(',')}}`;
+};
+
+const buildAuditHash = (input: {
+    sequence: number;
+    previousHash: string | null;
+    actionType: string;
+    description: string;
+    actor?: string;
+    item?: string;
+    requestPayload?: unknown;
+    responseObject?: unknown;
+    createdAt: Date;
+}): string => {
+    const digestPayload = {
+        v: 1,
+        sequence: input.sequence,
+        previousHash: input.previousHash,
+        actionType: input.actionType,
+        description: input.description,
+        actor: input.actor || null,
+        item: input.item || null,
+        requestPayload: input.requestPayload || null,
+        responseObject: input.responseObject || null,
+        createdAt: input.createdAt.toISOString(),
+    };
+
+    return crypto
+        .createHmac('sha256', hashSecret)
+        .update(toCanonicalJson(digestPayload))
+        .digest('hex');
+};
+
+export async function appendAuditLog(payload: AuditLogPayload) {
+    const AuditLogReader = await getAuditLogModel('reader');
+    const AuditLogWriter = await getAuditLogModel('writer');
+    const lastLog = await AuditLogReader.findOne({}, {}, { lean: true }).sort({ sequence: -1 });
+
+    const sequence = (lastLog?.sequence || 0) + 1;
+    const previousHash = lastLog?.hash || null;
+    const createdAt = new Date();
+
+    const hash = buildAuditHash({
+        sequence,
+        previousHash,
+        actionType: payload.actionType,
+        description: payload.description,
+        actor: payload.actor ? String(payload.actor) : undefined,
+        item: payload.item ? String(payload.item) : undefined,
+        requestPayload: payload.requestPayload,
+        responseObject: payload.responseObject,
+        createdAt,
+    });
+
+    return AuditLogWriter.create({
+        ...payload,
+        sequence,
+        previousHash,
+        hash,
+        createdAt,
+    });
 }
 
 export async function findAuditLog(
     query: FilterQuery<AuditLogDocument>,
     options: QueryOptions = { lean: true }
 ) {
-    return AuditLog.findOne(query, {}, options)
+    const AuditLog = await getAuditLogModel('reader');
+    return AuditLog.findOne(query, {}, options);
 }
 
 export async function findAuditLogs(
@@ -19,27 +96,62 @@ export async function findAuditLogs(
     expand: string,
     options: QueryOptions = { lean: true }
 ) {
-    const total = await AuditLog.find(query, {}, options).countDocuments()
-    const auditLogs = await AuditLog.find(query, {}, options).select('-body').populate(expand)
-        .sort({ 'createdAt' : -1 })
+    const AuditLog = await getAuditLogModel('reader');
+    const total = await AuditLog.find(query, {}, options).countDocuments();
+    const auditLogs = await AuditLog.find(query, {}, options)
+        .select('-__v')
+        .populate(expand)
+        .sort({ createdAt: -1 })
         .skip((perPage * page) - perPage)
         .limit(perPage);
+
     return {
         total,
-        logs: auditLogs
-    }
+        logs: auditLogs,
+    };
 }
 
-// export async function findAndUpdateBanner(
-//     query: FilterQuery<AuditLogDocument>,
-//     update: UpdateQuery<AuditLogDocument>,
-//     options: QueryOptions
-// ) {
-//     return AuditLog.findOneAndUpdate(query, update, options)
-// }
+export async function verifyAuditChainIntegrity(): Promise<AuditIntegrityCheckResult> {
+    const AuditLog = await getAuditLogModel('reader');
+    const logs = await AuditLog.find({}, {}, { lean: true }).sort({ sequence: 1 });
+    const errors: string[] = [];
 
-// export async function deleteBanner(
-//     query: FilterQuery<AuditLogDocument>
-// ) {
-//     return AuditLog.deleteOne(query)
-// }
+    let expectedSequence = 1;
+    let previousHash: string | null = null;
+
+    for (const log of logs) {
+        if (log.sequence !== expectedSequence) {
+            errors.push(`Sequence mismatch at record ${log._id}: expected ${expectedSequence}, got ${log.sequence}`);
+        }
+
+        if ((log.previousHash || null) !== previousHash) {
+            errors.push(`Previous hash mismatch at sequence ${log.sequence}`);
+        }
+
+        const computedHash = buildAuditHash({
+            sequence: log.sequence,
+            previousHash: log.previousHash || null,
+            actionType: log.actionType,
+            description: log.description,
+            actor: log.actor ? String(log.actor) : undefined,
+            item: log.item ? String(log.item) : undefined,
+            requestPayload: log.requestPayload,
+            responseObject: log.responseObject,
+            createdAt: new Date(log.createdAt),
+        });
+
+        if (computedHash !== log.hash) {
+            errors.push(`Hash mismatch at sequence ${log.sequence}`);
+        }
+
+        expectedSequence += 1;
+        previousHash = log.hash;
+    }
+
+    return {
+        valid: errors.length === 0,
+        checkedRecords: logs.length,
+        lastSequence: logs.length === 0 ? 0 : logs[logs.length - 1].sequence,
+        errors,
+    };
+}

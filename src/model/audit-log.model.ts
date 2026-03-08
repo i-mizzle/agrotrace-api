@@ -1,41 +1,99 @@
-import mongoose from 'mongoose';
-import { UserDocument } from './user.model';
+import mongoose, { Connection, Model, Schema } from 'mongoose';
+import { getAuditConnection, AuditConnectionMode } from '../db/audit-connect';
 
 export interface AuditLogDocument extends mongoose.Document {
-    actionType: string;
+    actionType: 'create' | 'read' | 'update' | 'delete' | 'approve' | 'cancel' | 'reject';
     description: string;
-    actor: UserDocument["_id"];
-    item?: any    
-    requestPayload?: object
-    responseObject?: object
-    createdAt?: Date;
-    updatedAt?: Date;
+    actor?: mongoose.Types.ObjectId;
+    item?: mongoose.Types.ObjectId;
+    requestPayload?: Record<string, unknown>;
+    responseObject?: Record<string, unknown>;
+    sequence: number;
+    previousHash: string | null;
+    hash: string;
+    createdAt: Date;
 }
 
-const AuditLogSchema = new mongoose.Schema(
+const immutableField = { immutable: true, required: true };
+
+const AuditLogSchema = new Schema(
     {
         actionType: {
             type: String,
             enum: ['create', 'read', 'update', 'delete', 'approve', 'cancel', 'reject'],
-            required: true
+            ...immutableField,
         },
         description: {
             type: String,
-            required: true
+            trim: true,
+            ...immutableField,
         },
-        requestPayload: {},
-        responseObject: {},
+        requestPayload: {
+            type: Schema.Types.Mixed,
+            immutable: true,
+        },
+        responseObject: {
+            type: Schema.Types.Mixed,
+            immutable: true,
+        },
         actor: {
-            type:  mongoose.Schema.Types.ObjectId, 
-            ref: 'User',
+            type: Schema.Types.ObjectId,
+            immutable: true,
         },
         item: {
-            type:  mongoose.Schema.Types.ObjectId, 
+            type: Schema.Types.ObjectId,
+            immutable: true,
+        },
+        sequence: {
+            type: Number,
+            unique: true,
+            index: true,
+            ...immutableField,
+        },
+        previousHash: {
+            type: String,
+            default: null,
+            immutable: true,
+        },
+        hash: {
+            type: String,
+            unique: true,
+            index: true,
+            ...immutableField,
         },
     },
-    { timestamps: true }
+    {
+        timestamps: { createdAt: true, updatedAt: false },
+    }
 );
 
-const AuditLog = mongoose.model<AuditLogDocument>('AuditLog', AuditLogSchema);
+const rejectMutation = function(next: (error?: Error) => void) {
+    next(new Error('Audit logs are append-only and cannot be modified or deleted'));
+};
 
-export default AuditLog;
+AuditLogSchema.pre('update', rejectMutation);
+AuditLogSchema.pre('updateOne', rejectMutation);
+AuditLogSchema.pre('updateMany', rejectMutation);
+AuditLogSchema.pre('findOneAndUpdate', rejectMutation);
+AuditLogSchema.pre('replaceOne', rejectMutation);
+AuditLogSchema.pre('findOneAndReplace', rejectMutation);
+AuditLogSchema.pre('deleteOne', rejectMutation);
+AuditLogSchema.pre('deleteMany', rejectMutation);
+AuditLogSchema.pre('findOneAndDelete', rejectMutation);
+AuditLogSchema.pre('remove', rejectMutation);
+
+const modelByConnection = new WeakMap<Connection, Model<AuditLogDocument>>();
+
+export const getAuditLogModel = async (mode: AuditConnectionMode): Promise<Model<AuditLogDocument>> => {
+    const connection = await getAuditConnection(mode);
+    const existingModel = modelByConnection.get(connection);
+
+    if (existingModel) {
+        return existingModel;
+    }
+
+    const model = connection.model<AuditLogDocument>('AuditLog', AuditLogSchema);
+    modelByConnection.set(connection, model);
+
+    return model;
+};

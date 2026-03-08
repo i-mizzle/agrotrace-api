@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import { get } from "lodash";
 import * as response from '../responses'
 import { getJsDate, slugify } from "../utils/utils";
-import { createAuditLog } from "../service/audit-log.service";
+import { enqueueAuditLog } from "../queues/audit-log.queue";
+import log from "../logger";
 import { createRole, findAndUpdateRole, findRole, findRoles } from "../service/role.service";
 
 const parseRoleFilters = (query: any) => {
@@ -68,14 +69,16 @@ export async function createRoleHandler (req: Request, res: Response) {
 
     const post = await createRole({ ...body, ...{createdBy: userId, slug: slugify(body.name)} })
     // return res.send(post)
-    await createAuditLog({
+    enqueueAuditLog({
         actionType: 'create',
         description: `created role ${body.name}`,
         actor: userId,
         item: post._id,
         requestPayload: body,
         responseObject: post
-    })
+    }).catch((error) => {
+        log.error('Failed to enqueue audit log job for role creation', error);
+    });
     return response.created(res, post)
 }
 
@@ -133,14 +136,16 @@ export async function updateRoleHandler (req: Request, res: Response) {
 
     const updated = await findAndUpdateRole({ _id: roleId }, updateQuery, {new: true});
     
-    await createAuditLog({
+    enqueueAuditLog({
         actionType: 'update',
         description: `update role ${role.name}`,
         actor: userId,
         item: roleId,
         requestPayload: {...req.params, ...updateQuery},
         responseObject: {message: 'role updated successfully', role: updated}
-    })
+    }).catch((error) => {
+        log.error('Failed to enqueue audit log job for role update', error);
+    });
     return response.ok(res, {message: 'role updated successfully', role: updated});
 }
 
@@ -154,13 +159,14 @@ export async function deleteRoleHandler (req: Request, res: Response) {
     }
 
     await findAndUpdateRole({ _id: roleId }, {deleted: true}, {new: true});
-    await createAuditLog({
+    enqueueAuditLog({
         actionType: 'delete',
         description: `delete role ${role.name}`,
         actor: userId,
         item: roleId,
         requestPayload: req.params,
-
-    })
+    }).catch((error) => {
+        log.error('Failed to enqueue audit log job for role deletion', error);
+    });
     return response.ok(res, {message: 'role deleted successfully'});
 }

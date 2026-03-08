@@ -2,6 +2,14 @@ export default {
     port: process.env.PORT,
     host: process.env.HOST,
     dbUri:  process.env.DB_URI,
+    auditDb: {
+        readerUri: process.env.AUDIT_DB_READER_URI || process.env.AUDIT_DB_URI,
+        writerUri: process.env.AUDIT_DB_WRITER_URI || process.env.AUDIT_DB_URI,
+    },
+    auditIntegrity: {
+        schedule: process.env.AUDIT_INTEGRITY_SCHEDULE || '*/15 * * * *',
+        hashSecret: process.env.AUDIT_HASH_SECRET,
+    },
     saltWorkFactor: process.env.SALT_WORK_FACTOR,
     privateKey: process.env.HASH_PRIVATE_KEY,
     accessTokenTtl: process.env.ACCESS_TOKEN_TTL,
