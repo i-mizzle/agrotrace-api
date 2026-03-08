@@ -1,0 +1,1 @@
+export type StringDate = `${number}${number}-${number}${number}-${number}${number}${number}${number}`
