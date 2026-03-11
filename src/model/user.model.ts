@@ -21,7 +21,6 @@ export interface UserDocument extends mongoose.Document {
     idNumber?:string,
     permissions?: string[];
     password: string;
-    passwordChanged: boolean;
     userType: string;
     confirmationCode?: ConfirmationCodeDocument["_id"];
     createdBy?: UserDocument["_id"];
@@ -81,17 +80,13 @@ const UserSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        passwordChanged: {
-            type: Boolean,
-            default: false
-        },
         phone: {
             type: String,
             required: true,
         },
         userType: {
             type: String,
-            enum: ['user', 'admin', 'super-administrator'],
+            enum: ['user', 'exporter', 'producer', 'inspector', 'regulator', 'admin', 'super-administrator'], // 
             default: 'user'
         },
         createdBy: {
