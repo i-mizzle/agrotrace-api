@@ -10,7 +10,7 @@ import { RoleDocument } from './role.model';
 
 export interface UserDocument extends mongoose.Document {
     email: string;
-    username: string;
+    // username: string;
     name: string;
     phone: string;
     organizations?: {

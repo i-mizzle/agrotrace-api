@@ -122,9 +122,9 @@ export async function changePasswordHandler(req: Request, res: Response) {
             return response.notFound(res, 'user not found')
         }
         
-        const validated = await validatePassword({username: user.email, password});
+        const validated = await validatePassword({email: user.email, password});
         if (!validated) {
-            return response.unAuthorized(res, { message: "invalid username or password" })
+            return response.unAuthorized(res, { message: "invalid email or password" })
         }
 
         await changePassword(mongoose.Types.ObjectId((user._id)), newPassword)

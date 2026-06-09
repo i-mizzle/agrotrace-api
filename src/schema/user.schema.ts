@@ -46,8 +46,8 @@ export const createUserSessionSchema = object({
             .required('password is required'),
             // .min(6, 'password is too short - should be 6 chars min'),
             // .matches(/^[a-zA-Z0-9_.-]*$/, 'password can only contain latin characters'),
-        username: string()
-        .required('username is required')        
+        email: string()
+        .required('email is required')        
     })
 });
 

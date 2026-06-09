@@ -80,13 +80,13 @@ export async function findAndUpdateUser(
 
 
 export async function validatePassword({
-    username,
+    email,
     password
 }: {
-    username: UserDocument['username'];
+    email: UserDocument['email'];
     password: string;
 }) {
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ email });
     
     if(!user) {
         return false
