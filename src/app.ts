@@ -3,6 +3,11 @@ import { createServer } from 'http';
 import path from 'path';
 import * as dotenv from 'dotenv';
 dotenv.config();
+
+// Initialize Sentry FIRST, before any other imports
+import { initializeSentry } from './sentry/init';
+initializeSentry();
+
 import cors from 'cors';
 process.env["NODE_CONFIG_DIR"] =  path.join(__dirname, '..', 'config')
 const config = require("config");
@@ -11,6 +16,7 @@ import log from "./logger";
 import routes from './routes'
 import { deserializeUser } from "./middleware";
 import enableCors from './middleware/enableCors';
+import { sentryRequestHandler, setupSentryErrorHandler } from './sentry/middleware';
 
 import { scheduleBackup } from './cron/backup.cron';
 import { connect, mongoose } from './db/connect';
@@ -29,6 +35,7 @@ const httpServer = createServer(app);
 app.use(cors());
 app.use(enableCors);
 app.use(deserializeUser)
+app.use(sentryRequestHandler);
 app.use(express.json({ limit: '75mb' }));
 app.use(express.urlencoded({ limit: '75mb', extended: true }));
 app.use(subdomainParser);
@@ -44,6 +51,7 @@ connect().then(() => {
         scheduleBackupWithRetries();
         // schedulePromotionsStatusToggler()
         routes(app);
+        setupSentryErrorHandler(app);
     });
 
     // Schedule the cron job

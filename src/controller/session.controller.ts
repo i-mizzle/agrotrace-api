@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { get } from 'lodash'
+import log from '../logger';
+import { enqueueAuditLog } from '../queues/audit-log.queue';
 import { validatePassword } from '../service/user.service'
 import { createAccessToken, createSession, findSessions, updateSession } from "../service/session.service";
 import * as response from "../responses/index";
@@ -41,6 +43,18 @@ export async function createUserSessionHandler(req: Request, res: Response) {
         expiresIn: config.get('refreshTokenTtl'), // 1 year
     });
 
+    // Enqueue audit log (non-blocking)
+    enqueueAuditLog({
+        actionType: 'create',
+        description: `user logged in`,
+        actor: user._id,
+        item: session._id,
+        requestPayload: {email: user.email},
+        responseObject: {message: 'session created'}
+    }).catch((error) => {
+        log.error('Failed to enqueue audit log for user login', error);
+    });
+
     return response.created(res, { 
         accessToken,
         refreshToken 
@@ -49,7 +63,21 @@ export async function createUserSessionHandler(req: Request, res: Response) {
 
 export async function invalidateUserSessionHandler(req: Request, res: Response) {
     const sessionId = get(req, 'user.session');
+    const userId = get(req, 'user._id');
     await updateSession({ _id:sessionId }, { valid: false });
+    
+    // Enqueue audit log (non-blocking)
+    enqueueAuditLog({
+        actionType: 'delete',
+        description: `user logged out`,
+        actor: userId,
+        item: sessionId,
+        requestPayload: {sessionId},
+        responseObject: {message: 'session invalidated'}
+    }).catch((error) => {
+        log.error('Failed to enqueue audit log for user logout', error);
+    });
+    
     return response.ok(res, {message: "successfully logged out of session"});
 }
 

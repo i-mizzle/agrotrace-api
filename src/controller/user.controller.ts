@@ -3,6 +3,7 @@ import { changePassword, createUser, deleteUser, findAllUsers, findAndUpdateUser
 import { get, omit } from "lodash";
 import * as response from "../responses/index";
 import log from "../logger";
+import { enqueueAuditLog } from "../queues/audit-log.queue";
 import { addMinutesToDate, getJsDate } from "../utils/utils";
 import mongoose from "mongoose";
 
@@ -331,6 +332,7 @@ export async function completeSignupHandler(req: Request, res: Response) {
 
 export async function createUserHandler(req: Request, res: Response) {
     try {
+        const userId = get(req, 'user._id');
         const existingUserByEmail = await findUser({ email: req.body.email })
         const existingUserByPhone = await findUser({ phone: req.body.phone })
 
@@ -345,6 +347,18 @@ export async function createUserHandler(req: Request, res: Response) {
         const input = req.body
 
         const user = await createUser(input)
+
+        // Enqueue audit log (non-blocking)
+        enqueueAuditLog({
+            actionType: 'create',
+            description: `created user ${user.name}`,
+            actor: userId,
+            item: user._id,
+            requestPayload: omit(input, ['password']),
+            responseObject: omit(user.toJSON(), ['password'])
+        }).catch((error) => {
+            log.error('Failed to enqueue audit log for user creation', error);
+        });
 
         return response.created(res, 
             omit(user.toJSON(), ['password'])
@@ -450,6 +464,19 @@ export async function updateUserHandler (req: Request, res: Response) {
         const currentUser = get(req, 'user._id')
         const update = req.body
         const updatedUser = await findAndUpdateUser({ _id: currentUser }, update, { new: true })
+        
+        // Enqueue audit log (non-blocking)
+        enqueueAuditLog({
+            actionType: 'update',
+            description: `updated own user profile`,
+            actor: currentUser,
+            item: currentUser,
+            requestPayload: update,
+            responseObject: omit(updatedUser, ['password'])
+        }).catch((error) => {
+            log.error('Failed to enqueue audit log for user update', error);
+        });
+        
         return response.ok(res, omit(updatedUser, ['password']))
     } catch (error: any) {
         log.error(error)
@@ -472,6 +499,18 @@ export async function deleteUserHandler (req: Request, res: Response) {
         }
 
         await deleteUser({_id: user._id})
+        
+        // Enqueue audit log (non-blocking)
+        enqueueAuditLog({
+            actionType: 'delete',
+            description: `deleted user ${user.name}`,
+            actor: currentUser,
+            item: user._id,
+            requestPayload: {userId: req.params.userId}
+        }).catch((error) => {
+            log.error('Failed to enqueue audit log for user deletion', error);
+        });
+        
         return response.ok(res, {message: 'User deleted successfully'})
     } catch (error: any) {
         log.error(error)
@@ -502,6 +541,7 @@ const checkUpdateObject = (update: any, currentUser: any) : { error: Boolean, me
 export async function adminUpdateUserHandler (req: Request, res: Response) {
     try {
         const currentUser = get(req, 'user')
+        const currentUserId = get(currentUser, '_id')
         const user = await findUser({_id: req.params.userId})
         const update = req.body;
 
@@ -519,6 +559,19 @@ export async function adminUpdateUserHandler (req: Request, res: Response) {
         }
     
         const updatedUser = await findAndUpdateUser({ _id: user._id }, update, { new: true })
+        
+        // Enqueue audit log (non-blocking)
+        enqueueAuditLog({
+            actionType: 'update',
+            description: `admin updated user ${user.name}`,
+            actor: currentUserId,
+            item: user._id,
+            requestPayload: update,
+            responseObject: updatedUser
+        }).catch((error) => {
+            log.error('Failed to enqueue audit log for admin user update', error);
+        });
+        
         return response.ok(res, updatedUser)
     } catch (error: any) {
         log.error(error)

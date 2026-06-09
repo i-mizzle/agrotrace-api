@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import * as response from '../responses'
 import { get } from "lodash";
 import { getJsDate } from "../utils/utils";
+import log from "../logger";
+import { enqueueAuditLog } from "../queues/audit-log.queue";
 import { createCategory, findAndUpdateCategory, findCategories, findCategory } from "../service/category.service";
 
 const parseCategoryFilters = (query: any) => {
@@ -38,6 +40,18 @@ export const createCategoryHandler = async (req: Request, res: Response) => {
         let body = req.body
 
         const category = await createCategory({...body, ...{createdBy: userId }})
+        
+        // Enqueue audit log (non-blocking)
+        enqueueAuditLog({
+            actionType: 'create',
+            description: `created category ${category.name || 'unknown'}`,
+            actor: userId,
+            item: category._id,
+            requestPayload: body,
+            responseObject: category
+        }).catch((error) => {
+            log.error('Failed to enqueue audit log for category creation', error);
+        });
         
         return response.created(res, category)
     } catch (error:any) {
@@ -111,7 +125,19 @@ export const updateCategoryHandler = async (req: Request, res: Response) => {
             return response.notFound(res, {message: 'category not found'})
         }
 
-        await findAndUpdateCategory({_id: item._id}, update, {new: true})
+        const updated = await findAndUpdateCategory({_id: item._id}, update, {new: true})
+
+        // Enqueue audit log (non-blocking)
+        enqueueAuditLog({
+            actionType: 'update',
+            description: `updated category ${item.name || 'unknown'}`,
+            actor: userId,
+            item: categoryId,
+            requestPayload: update,
+            responseObject: updated
+        }).catch((error) => {
+            log.error('Failed to enqueue audit log for category update', error);
+        });
 
         return response.ok(res, {message: 'category updated successfully'})
         
@@ -130,6 +156,17 @@ export const deleteCategoryHandler = async (req: Request, res: Response) => {
         }
 
         await findAndUpdateCategory({_id: menu._id}, {deleted: true}, {new: true})
+
+        // Enqueue audit log (non-blocking)
+        enqueueAuditLog({
+            actionType: 'delete',
+            description: `deleted category ${menu.name || 'unknown'}`,
+            actor: userId,
+            item: menuId,
+            requestPayload: {categoryId: menuId}
+        }).catch((error) => {
+            log.error('Failed to enqueue audit log for category deletion', error);
+        });
 
         return response.ok(res, {message: 'category deleted successfully'})
         

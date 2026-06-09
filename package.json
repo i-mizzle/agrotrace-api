@@ -12,6 +12,8 @@
   "author": "Immanuel Onum",
   "license": "ISC",
   "dependencies": {
+    "@sentry/node": "^10.57.0",
+    "@sentry/tracing": "^7.120.4",
     "@types/moment": "^2.11.29",
     "@types/socket.io": "^3.0.1",
     "@types/winston": "^2.4.4",

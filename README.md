@@ -1,25 +1,158 @@
 # agrotrace-api
 
-## Audit Logging Hardening
+## Application Setup and Queue Processing
 
-This project now supports a hardened audit logging pipeline with append-only, tamper-evident records.
+This service runs as two cooperating processes:
 
-### What Changed
+1. API process for HTTP requests.
+2. Worker process for background jobs (email, audit logs, QR code generation).
 
-- API requests enqueue audit log jobs (non-blocking).
-- A worker appends logs in sequence with hash chaining.
-- Integrity checks run on a cron schedule and report chain issues.
-- Audit records are stored in a separate database connection.
+### Prerequisites
+
+- Node.js and npm.
+- MongoDB for main application data.
+- Redis for Bull queues.
+
+### Environment Setup
+
+Create a `.env` file with the minimum required runtime values used by this codebase:
+
+```env
+PORT=3000
+HOST=0.0.0.0
+DB_URI=mongodb://127.0.0.1:27017/agrotrace
+
+# Audit DB (can point to same DB as fallback)
+AUDIT_DB_URI=mongodb://127.0.0.1:27017/agrotrace_audit
+AUDIT_DB_READER_URI=mongodb://127.0.0.1:27017/agrotrace_audit
+AUDIT_DB_WRITER_URI=mongodb://127.0.0.1:27017/agrotrace_audit
+AUDIT_HASH_SECRET=replace-with-strong-secret
+AUDIT_INTEGRITY_SCHEDULE=*/15 * * * *
+
+# Optional Sentry
+SENTRY_DSN=
+```
+
+### Install and Build
+
+```bash
+npm install
+npm run build
+```
+
+### Run the Application
+
+Start the API process:
+
+```bash
+npm run dev
+```
+
+Start background workers in a separate terminal:
+
+```bash
+npm run workers
+```
+
+Production mode:
+
+```bash
+npm run build
+npm start
+```
+
+### How Queues Work
+
+This project uses Bull + Redis queues. Producers enqueue jobs in request handlers, and workers consume them asynchronously.
+
+Queue definitions:
+
+- `src/queues/email.queue.ts` (queue name: `emailQueue`)
+- `src/queues/audit-log.queue.ts` (queue name: `auditLogQueue`)
+- `src/queues/qrcode.queue.ts` (queue name: `qrCodeQueue`)
+
+Worker entrypoint:
+
+- `src/workers/start.ts` loads:
+	- `src/workers/email.worker.ts`
+	- `src/workers/audit-log.worker.ts`
+	- `src/workers/qr-code.worker.ts`
+
+Shared queue behavior:
+
+- Redis endpoint is currently hardcoded to `127.0.0.1:6379` in queue files.
+- Jobs are retried up to `5` attempts.
+- Backoff delay is `10000` ms.
+- Completed and failed jobs are retained with queue limits (`removeOnComplete`, `removeOnFail`).
+
+Request/worker flow:
+
+1. API endpoint receives a request.
+2. Endpoint enqueues a job (non-blocking).
+3. API returns response.
+4. Worker picks the job from Redis and executes the task.
+5. On failure, Bull retries based on queue settings.
+
+### Quick Queue Health Checks
+
+- Confirm Redis is running on `127.0.0.1:6379`.
+- Confirm worker process is running (`npm run workers`).
+- Trigger an action that enqueues work (for example login, user creation, role/category operations).
+- Check worker logs for job receipt and completion messages.
+
+If workers are down, jobs can accumulate in Redis and will execute once workers restart.
+
+## Audit Logging
+
+Audit logging in this API is designed to be non-blocking, append-only, and tamper-evident.
+
+### How It Works
+
+1. Business endpoints enqueue audit log jobs using `enqueueAuditLog(...)`.
+2. The API response is returned without waiting for audit persistence.
+3. The worker process consumes audit jobs one at a time (`process(1)`).
+4. Each log is written with:
+	 - a monotonic `sequence`,
+	 - `previousHash` (link to the prior record),
+	 - `hash` (HMAC-SHA256 over canonicalized log data).
+5. A scheduled integrity job recalculates and verifies the full hash chain.
+
+Core implementation files:
+
+- `src/queues/audit-log.queue.ts`
+- `src/workers/audit-log.worker.ts`
+- `src/service/audit-log.service.ts`
+- `src/model/audit-log.model.ts`
+- `src/db/audit-connect.ts`
+
+### Data Integrity Model
+
+Each audit record stores:
+
+- action metadata (`actionType`, `description`, optional `actor`, optional `item`)
+- request and response snapshots (`requestPayload`, `responseObject`)
+- chain metadata (`sequence`, `previousHash`, `hash`)
+- immutable timestamp (`createdAt`)
+
+Records are append-only at both layers:
+
+- Application layer: schema middleware blocks update/delete operations.
+- Database layer: use least-privilege reader/writer users.
 
 ### Required Environment Variables
 
 - `AUDIT_DB_URI`: fallback URI for audit database.
 - `AUDIT_DB_READER_URI`: audit DB URI for read operations and integrity checks.
-- `AUDIT_DB_WRITER_URI`: audit DB URI for write operations in the worker.
-- `AUDIT_HASH_SECRET`: HMAC secret used for tamper-evident hash generation.
-- `AUDIT_INTEGRITY_SCHEDULE`: cron schedule for periodic chain checks.
+- `AUDIT_DB_WRITER_URI`: audit DB URI for write operations by the worker.
+- `AUDIT_HASH_SECRET`: HMAC secret used to generate record hashes.
+- `AUDIT_INTEGRITY_SCHEDULE`: cron expression for integrity checks.
 
-### DB User Permissions
+Defaults and behavior:
+
+- If reader/writer URIs are not set, `AUDIT_DB_URI` is used as fallback.
+- If `AUDIT_INTEGRITY_SCHEDULE` is not set, default is every 15 minutes (`*/15 * * * *`).
+
+### Recommended DB User Permissions
 
 Use separate users for reader and writer URIs:
 
@@ -27,3 +160,278 @@ Use separate users for reader and writer URIs:
 - Writer user: allow `insert` only on audit collection.
 
 Do not grant update or delete privileges on the audit collection.
+
+### Running the Audit Pipeline
+
+Start both processes:
+
+1. API process (serves HTTP requests).
+2. Worker process (persists audit jobs and runs integrity checks):
+
+```bash
+npm run workers
+```
+
+If the worker is not running, audit jobs will queue in Redis but will not be persisted.
+
+### How to Trigger Audit Logs
+
+Audit logs are created automatically when certain endpoints are called successfully. Current examples include:
+
+- Authentication:
+	- `POST /auth/sessions` (login)
+	- `DELETE /auth/sessions` (logout)
+- User management:
+	- `POST /users/create-user`
+	- `PATCH /user/profile/:userId`
+	- `DELETE /users/delete/:userId`
+- Category management:
+	- `POST /categories`
+	- `DELETE /categories/:categoryId`
+- Role management:
+	- `POST /roles`
+	- `PATCH /roles/:roleId`
+
+Example trigger flow:
+
+1. Authenticate to get a bearer token.
+2. Call one audited endpoint (for example `POST /roles` or `POST /categories`).
+3. Confirm worker logs show:
+	 - job received,
+	 - audit log created.
+
+### How to Verify Audit Logs Were Recorded
+
+Use one or more of the following:
+
+- Worker logs:
+	- `Audit log job received`
+	- `Audit log created`
+- MongoDB audit collection:
+	- check new document with incremented `sequence`
+	- verify `previousHash` links to prior record
+- Integrity cron logs:
+	- success: `Audit integrity check passed ...`
+	- failure: `Audit integrity check failed ...`
+
+### Operational Notes
+
+- Queue retries are enabled (`attempts: 5`) with backoff.
+- Worker concurrency is intentionally `1` to preserve deterministic sequence ordering.
+- Integrity verification validates sequence continuity, previous-hash linkage, and hash recomputation for each record.
+
+### Troubleshooting
+
+No audit logs are persisted:
+
+- Ensure Redis is running and reachable (`127.0.0.1:6379`).
+- Ensure `npm run workers` is running.
+- Check worker startup logs for audit DB writer connection errors.
+
+Integrity check failures:
+
+- Check for direct manual modifications in the audit collection.
+- Confirm the same `AUDIT_HASH_SECRET` is used consistently across environments.
+
+Jobs queued but not consumed:
+
+- Verify worker process is alive.
+- Check Redis connectivity and queue health.
+
+## Sentry Error Monitoring
+
+This API is integrated with Sentry for:
+
+- Automatic exception capture from Express routes.
+- Uncaught exception and unhandled rejection capture.
+- Request tracing and HTTP breadcrumbs.
+- Optional custom breadcrumbs and explicit error capture.
+- User context enrichment for authenticated requests.
+
+### Architecture Overview
+
+Sentry is wired across three places:
+
+- Initialization: `src/sentry/init.ts`
+- Middleware and helpers: `src/sentry/middleware.ts`
+- App bootstrap wiring: `src/app.ts`
+
+Request lifecycle:
+
+1. Sentry SDK is initialized at app startup.
+2. Request middleware attaches authenticated user context to Sentry scope.
+3. Route handlers run.
+4. Express error middleware forwards unhandled route errors to Sentry.
+5. You can also manually report exceptions and breadcrumbs from business logic.
+
+### Required Environment Variables
+
+- `SENTRY_DSN`: Sentry project DSN. If missing, Sentry is disabled.
+
+### Optional Environment Variables
+
+- `NODE_ENV`: Used as Sentry environment (defaults to `development`).
+- `APP_VERSION`: Used as Sentry release (defaults to `1.0.0`).
+- `HOSTNAME`: Used as Sentry serverName (defaults to `agrotrace-api`).
+
+Example `.env` values:
+
+```env
+SENTRY_DSN=https://<public-key>@o<org-id>.ingest.sentry.io/<project-id>
+NODE_ENV=production
+APP_VERSION=1.12.0
+HOSTNAME=api-node-1
+```
+
+### Initialization Behavior
+
+The SDK is initialized in `src/sentry/init.ts` with:
+
+- `httpIntegration()` for outbound/inbound HTTP telemetry.
+- `expressIntegration()` for Express instrumentation.
+- `onUncaughtExceptionIntegration()` for process-level crashes.
+- `onUnhandledRejectionIntegration()` for unhandled promises.
+- `tracesSampleRate`:
+	- `0.1` in production.
+	- `1.0` outside production.
+- `beforeSend` filter:
+	- Validation-related errors are dropped in non-production environments.
+
+If `SENTRY_DSN` is not set, the app logs a warning and continues without Sentry.
+
+### Middleware Order (Important)
+
+Current wiring in `src/app.ts`:
+
+1. `initializeSentry()` runs before regular app imports and setup.
+2. `deserializeUser` runs and sets `req.user` when token is valid.
+3. `sentryRequestHandler` runs and copies user info into Sentry scope.
+4. `routes(app)` registers route handlers.
+5. `setupSentryErrorHandler(app)` installs Sentry Express error middleware.
+
+Why this matters:
+
+- Request handler must run before route code to enrich events.
+- Error handler must be registered after routes so it can capture thrown/forwarded errors.
+
+### Automatic Capture
+
+Sentry captures:
+
+- Exceptions thrown in route handlers that reach Express error middleware.
+- Async errors passed to `next(error)`.
+- Uncaught exceptions and unhandled rejections at process level.
+
+### User Context
+
+User context is attached in `src/sentry/middleware.ts` via `setSentryUser(req)`.
+
+When `req.user` exists, Sentry receives:
+
+- `user.id`
+- `user.email`
+- `user.username`
+- `user.ip_address`
+- custom context fields like `userType` and `createdAt`
+
+This makes it easier to correlate errors to specific actors.
+
+### Manual Instrumentation Helpers
+
+You already have helper utilities in `src/sentry/middleware.ts`:
+
+- `captureError(error, context?)`
+- `addBreadcrumb(message, data?)`
+- `asyncHandler(fn)` wrapper for async controllers
+
+Example manual error capture:
+
+```ts
+import { captureError } from './sentry/middleware';
+
+try {
+	// business logic
+} catch (error) {
+	captureError(error as Error, {
+		service: 'order-service',
+		action: 'create-order',
+		orderId,
+	});
+	throw error;
+}
+```
+
+Example breadcrumb usage:
+
+```ts
+import { addBreadcrumb } from './sentry/middleware';
+
+addBreadcrumb('Started payment authorization', {
+	provider: 'paystack',
+	orderId,
+});
+```
+
+Example async controller wrapper:
+
+```ts
+import { asyncHandler } from './sentry/middleware';
+
+app.get('/example', asyncHandler(async (req, res) => {
+	// If this throws, it is captured and forwarded
+	const result = await doWork();
+	res.json(result);
+}));
+```
+
+### Verifying Sentry End-to-End
+
+Use this checklist:
+
+1. Set `SENTRY_DSN` in your environment.
+2. Start API.
+3. Trigger a test error from any route.
+4. Confirm event appears in Sentry Issues.
+5. Verify event has:
+	 - request URL/method,
+	 - stack trace,
+	 - environment,
+	 - release,
+	 - user context (for authenticated requests).
+
+Optional test route snippet:
+
+```ts
+app.get('/sentry-test', (_req, _res) => {
+	throw new Error('Sentry test error');
+});
+```
+
+### Production Tuning Recommendations
+
+- Keep `tracesSampleRate` low in production (currently `0.1`).
+- Use a release value tied to deployment version/commit.
+- Keep personally identifiable data policy-compliant before sending context.
+- Add targeted `addBreadcrumb` calls around external API calls and queue operations.
+
+### Troubleshooting
+
+No events in Sentry:
+
+- Ensure `SENTRY_DSN` is set in the running environment.
+- Confirm outbound network access to Sentry ingest endpoint.
+- Check startup logs for "Sentry initialized successfully".
+
+Events missing user details:
+
+- Confirm auth middleware sets `req.user` before `sentryRequestHandler`.
+- Ensure route is authenticated.
+
+Events missing from handled errors:
+
+- Make sure exceptions are thrown or passed to `next(error)`.
+- If swallowing errors in `catch`, call `captureError(...)` explicitly.
+
+Too many noisy events:
+
+- Extend the `beforeSend` filter in `src/sentry/init.ts` to drop known noise classes.
