@@ -23,6 +23,10 @@ export interface ExporterDocument extends Document {
   companyName: string
   registrationNumber?: string
   exportLicenseNumber?: string
+  contact: {
+    email: string
+    phone: string
+  }
 
   commodities: ExportCommodity[]
 
@@ -68,6 +72,18 @@ const ExporterSchema = new Schema<ExporterDocument>(
 
     exportLicenseNumber: {
       type: String
+    },
+
+    contact: {
+      email: {
+        type: String,
+        required: true,
+        lowercase: true
+      },
+      phone: {
+        type: String,
+        required: true
+      }
     },
 
     commodities: [

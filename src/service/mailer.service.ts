@@ -168,7 +168,7 @@ export async function sendAdminNewUserNotificationEmail (mailParams: AdminNewUse
         const data = {
             from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
-            subject: 'Welcome to AgroTraceNG',
+            subject: 'New user on AgroTraceNG',
             // template: 'email_confirmation',
             text: `Glad to have you onboard`,
             html: html,

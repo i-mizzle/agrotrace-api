@@ -11,6 +11,10 @@ import { nanoid } from "nanoid";
 import { createConfirmationCode, findAndUpdateConfirmation, findConfirmationCode } from "../service/confirmation-code.service";
 import { sendEmailJob } from "../queues/email.queue";
 import { findRole } from "../service/role.service";
+import { ProducerDocument } from "../model/producer.model";
+import { ExporterDocument } from "../model/exporter.model";
+import { createProducer } from "../service/producer.service";
+import { createExporter } from "../service/exporter.service";
 const tokenTtl = config.get('resetTokenTtl') as number
 
 const parseUserFilters = (query: any) => {
@@ -103,7 +107,7 @@ export async function signupHandler(req: Request, res: Response) {
 
 export async function confirmEmailHandler(req: Request, res: Response) {
     try {
-        const confirmationCode = await findConfirmationCode({code: req.params.confirmationCode, type: 'email_confirmation'})
+        const confirmationCode = await findConfirmationCode({code: req.body.confirmationCode, type: 'email-confirmation'})
 
         if (!confirmationCode) {
             return response.notFound(res, { message: `invalid confirmation code` })
@@ -194,6 +198,7 @@ export async function resendEmailConfirmationHandler(req: Request, res: Response
 export async function completeSignupHandler(req: Request, res: Response) {
     try {
         const body = req.body;
+        const signupType = (body.userType || body.type || '').toLowerCase();
         
         const confirmationCode = await findConfirmationCode({code: body.stateToken, type: 'signup-completion', valid: true})
 
@@ -214,16 +219,74 @@ export async function completeSignupHandler(req: Request, res: Response) {
         if(!user) {
             return response.conflict(res, {message: "user not found"})
         }
-
-        await changePassword(mongoose.Types.ObjectId((user._id)), body.password)
-        
+       
         const userId = user._id;
         let updateQuery = body
         delete updateQuery.password
         delete updateQuery.confirmationCode
+        delete updateQuery.stateToken
+        delete updateQuery.type
         updateQuery.emailConfirmed = true
+        updateQuery.userType = signupType
         // updateQuery.name = `${body.firstName}${body.middleName ? ` ${body.middleName} ` : ' '}${body.lastName}`
         updateQuery.signupComplete = true
+
+        
+        let organization: ProducerDocument | ExporterDocument | null = null
+        
+        if(signupType === 'producer') {
+            organization = await createProducer({
+                ...body.organization,
+                contact: {
+                    email: user.email,
+                    phone: user.phone
+                },
+                primaryLocation: {
+                    state: body.state,
+                    lga: body.lga
+                },
+                createdBy: user._id
+            })
+        }
+        
+        if(signupType === 'exporter') {
+            organization = await createExporter({ 
+                ...body.organization,
+                contact: {
+                    email: user.email,
+                    phone: user.phone
+                },
+                address: {
+                    address: body.address,
+                    state: body.state,
+                    country: body.country,
+                    countryCode: body.countryCode
+                },
+                createdBy: user._id
+            })
+        }
+
+        if(signupType !== 'producer' && signupType !== 'exporter') {
+            return response.badRequest(res, {message: `organization setup for user type '${signupType}' is not yet supported`})
+        }
+
+
+        if(!organization) {
+            return response.error(res, {message: 'sorry there was an error creating your organization'})
+        }
+
+        // get organization owner role
+        const role = await findRole({slug: 'business-owner'})
+        if(!role){
+            return response.notFound(res, {message: 'business owner role not found'})
+        }
+        
+        updateQuery.organizations = [
+            {
+                organization: organization._id,
+                roles: [role._id]
+            }
+        ]
 
         const updatedUser = await findAndUpdateUser({ _id: userId }, updateQuery, { new: true })
 
@@ -238,6 +301,10 @@ export async function completeSignupHandler(req: Request, res: Response) {
             data: {
                 mailTo: user.email,
                 firstName: user.name.split(' ')[0],
+                userType: signupType,
+                organization: {
+                    name: (organization as any).name || (organization as any).companyName || body.organization?.name || body.organization?.companyName || 'your organization'
+                }
             }
         })
 
@@ -248,7 +315,7 @@ export async function completeSignupHandler(req: Request, res: Response) {
                 userEmail: user.email,
                 userName: user.name,
                 userType: user.userType,
-                organization: user.organizations?.[0] || 'N/A'
+                organization: organization
             }
         })
 

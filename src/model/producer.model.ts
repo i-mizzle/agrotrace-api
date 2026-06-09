@@ -4,10 +4,17 @@ import { UserDocument } from './user.model';
 
 export interface ProducerDocument extends mongoose.Document {
     name: string;
-    slug: string;
-    // bussiness: BusinessDocument["_id"]
-    description: string;
-    permissions: string[]
+    type: string
+    contact: {
+        email: string
+        phone: string
+    }
+    idType: string
+    idNumber: string
+    primaryLocation: {
+        state: string
+        lga: string
+    }
     deleted: Boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
