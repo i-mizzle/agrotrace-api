@@ -4,7 +4,6 @@ import { get, omit } from "lodash";
 import * as response from "../responses/index";
 import log from "../logger";
 import { addMinutesToDate, getJsDate } from "../utils/utils";
-// import { createConfirmationCode, findAndUpdateConfirmation, findConfirmationCode } from "../service/confirmation-code.service";
 import mongoose from "mongoose";
 
 import config from 'config';
@@ -12,10 +11,6 @@ import { nanoid } from "nanoid";
 import { createConfirmationCode, findAndUpdateConfirmation, findConfirmationCode } from "../service/confirmation-code.service";
 import { sendEmailJob } from "../queues/email.queue";
 import { findRole } from "../service/role.service";
-// import { createBusiness } from "../service/business.service";
-// import { sendEmailConfirmation } from "../service/mailer.service";
-// import { findRole } from "../service/role.service";
-// import { sendToKafka } from "../kafka/kafka";
 const tokenTtl = config.get('resetTokenTtl') as number
 
 const parseUserFilters = (query: any) => {
@@ -38,23 +33,7 @@ const parseUserFilters = (query: any) => {
     if (userType) {
         filters.userType = userType
     }
-    
-    // if (attendeeName) {
-    //     // filters.attendee = attendeeName; 
-    //     filters["attendee.name"] = { $elemMatch: { name: attendeeName } };; 
-    // }
-    
-    // if (attendeeEmail) {
-    //     // filters.email = email; 
-    //     filters["attendee.email"] = { $elemMatch: { name: attendeeEmail } };; 
-    // }
-    
-    // if (attendeePhone) {
-    //     // filters.phone = phone; 
-    //     filters["attendee.email"] = { $elemMatch: { name: attendeePhone } };; 
-    // }
-
-        
+            
     if (minDateCreated) {
         filters.createdAt = { $gte: (getJsDate(minDateCreated)) }; 
     }
@@ -79,37 +58,24 @@ export async function signupHandler(req: Request, res: Response) {
             return response.conflict(res, {message: 'phone number already registered'})
         }
 
-        const existingUserByUsername = await findUser({ phone: req.body.username })
-        if (existingUserByUsername) {
-            return response.conflict(res, {message: 'username already registered'})
-        }
+        // const existingUserByUsername = await findUser({ phone: req.body.username })
+        // if (existingUserByUsername) {
+        //     return response.conflict(res, {message: 'username already registered'})
+        // }
         
         const input = req.body
 
-        const user = await createUser({...input, passwordChanged: true})
+        const user = await createUser({...input})
 
-        // create business
         if(user) {
-            // const business = await createBusiness(input.business)
-            // if(!business) {
-            //     return response.error(res, {message: 'business creation failed.'})
-            // }
-            const code = nanoid(45)
+            const code = nanoid(6).toUpperCase()
             const confirmationCode = await createConfirmationCode({
                 code: code,
                 type: 'email-confirmation',
                 expiry: addMinutesToDate(new Date(), tokenTtl)
             })
-            // let userBusinesses = []
-
-            // const role = await findRole({slug: 'business-owner'})
-            // userBusinesses.push({
-            //     business: business._id,
-            //     roles: [role && role._id]
-            // })
             
             await findAndUpdateUser({_id: user._id}, {
-                // businesses: userBusinesses,
                 confirmationCode: confirmationCode._id
             }, {new: true})
 
@@ -135,46 +101,51 @@ export async function signupHandler(req: Request, res: Response) {
     }
 }
 
-export async function createUserHandler(req: Request, res: Response) {
+export async function confirmEmailHandler(req: Request, res: Response) {
     try {
-        const existingUserByEmail = await findUser({ email: req.body.email })
-        const existingUserByPhone = await findUser({ phone: req.body.phone })
+        const confirmationCode = await findConfirmationCode({code: req.params.confirmationCode, type: 'email_confirmation'})
 
-        if (existingUserByEmail) {
-            return response.conflict(res, {message: 'email already registered'})
+        if (!confirmationCode) {
+            return response.notFound(res, { message: `invalid confirmation code` })
+        } 
+
+        const timeNow = new Date()
+        if(!confirmationCode.createdAt) {
+            return
+        }
+    
+        if (timeNow > confirmationCode.expiry) {
+            return response.conflict(res, {message: "Sorry, confirmation code has expired, please get a new code"})
         }
 
-        if (existingUserByPhone) {
-            return response.conflict(res, {message: 'phone number already registered'})
+        const user = await findUser({ confirmationCode: confirmationCode._id, emailConfirmed: false });
+        if(!user) {
+            return response.conflict(res, {message: "email already confirmed, please log in"})
         }
 
-        const input = req.body
+        const code = nanoid(45)
+        const stateToken = await createConfirmationCode({
+            code: code,
+            type: 'signup-completion',
+            expiry: addMinutesToDate(new Date(), tokenTtl)
+        })
 
-        // if(req.currentBusiness) {
-        //     const userId = get(req, 'user._id')
+        const updatedUser = await findAndUpdateUser({ _id: user._id }, {
+            emailConfirmed: true,
+            confirmationCode: stateToken._id
+        }, { new: true })
 
-        //     // const currentSubscription = req.storeSubscription
-        //     // const storeUsers = await findAllUsers({business: req.currentBusiness._id}, 0, 0)
+        await findAndUpdateConfirmation({ _id: confirmationCode._id }, { valid: false }, { new: true })
 
-        //     // if(storeUsers.total >= currentSubscription?.subscriptionPlan.thresholds.users){
-        //     //     return response.forbidden(res, {message: 'users threshold exceeded for your subscription, please upgrade.'})
-        //     // }
-        //     const storeOwnerRole = await findRole({slug: 'store-owner'})
+        if(!updatedUser) {
+            return response.error(res, {message: 'sorry there was an error updating the user'})
+        }
 
-        //     input.businesses = [{
-        //         business: req.currentBusiness?._id,
-        //         roles: input.roles && input.roles.length > 0 ? input.roles : [storeOwnerRole?._id]
-        //     }]
-
-        //     input.createdBy = userId
-        //     input.emailConfirmed = true
-        // }
-
-        const user = await createUser(input)
-
-        return response.created(res, 
-            omit(user.toJSON(), ['password'])
-        )
+        return response.ok(res, {
+            message: 'email confirmed successfully',
+            stateToken: stateToken.code
+            // data: omit(updatedUser, ['_id', 'password', 'confirmationToken'])
+        })
     } catch (error: any) {
         log.error(error)
         return response.error(res, error)
@@ -220,13 +191,14 @@ export async function resendEmailConfirmationHandler(req: Request, res: Response
     }
 }
 
-export async function confirmEmailHandler (req: Request, res: Response) {
+export async function completeSignupHandler(req: Request, res: Response) {
     try {
         const body = req.body;
-        const confirmationCode = await findConfirmationCode({code: body.confirmationCode, type: 'email-confirmation'})
+        
+        const confirmationCode = await findConfirmationCode({code: body.stateToken, type: 'signup-completion', valid: true})
 
         if (!confirmationCode) {
-            return response.notFound(res, { message: `invalid confirmation code` })
+            return response.notFound(res, { message: `invalid state token` })
         } 
 
         const timeNow = new Date()
@@ -235,20 +207,26 @@ export async function confirmEmailHandler (req: Request, res: Response) {
         }
     
         if (timeNow > confirmationCode.expiry) {
-        // if (timeNow.getTime() > new Date(confirmationCode.createdAt).getTime() + tokenTtl * 60000) {
             return response.conflict(res, {message: "Sorry, confirmation code has expired, please get a new code"})
         }
 
-        const user = await findUser({ confirmationCode: confirmationCode._id, emailConfirmed: false });
+        const user = await findUser({ confirmationCode: confirmationCode._id }, 'organizations.organization');
         if(!user) {
-            return response.conflict(res, {message: "email already confirmed, please log in"})
+            return response.conflict(res, {message: "user not found"})
         }
 
+        await changePassword(mongoose.Types.ObjectId((user._id)), body.password)
+        
         const userId = user._id;
-        let updateQuery = user
+        let updateQuery = body
+        delete updateQuery.password
+        delete updateQuery.confirmationCode
         updateQuery.emailConfirmed = true
+        // updateQuery.name = `${body.firstName}${body.middleName ? ` ${body.middleName} ` : ' '}${body.lastName}`
+        updateQuery.signupComplete = true
 
         const updatedUser = await findAndUpdateUser({ _id: userId }, updateQuery, { new: true })
+
         await findAndUpdateConfirmation({ _id: confirmationCode._id }, { valid: false }, { new: true })
 
         if(!updatedUser) {
@@ -256,18 +234,54 @@ export async function confirmEmailHandler (req: Request, res: Response) {
         }
 
         sendEmailJob({
-            action: 'welcome-email',
+            action: 'welcome-email', 
             data: {
                 mailTo: user.email,
                 firstName: user.name.split(' ')[0],
-                subdomain: req.businessSubdomain   
             }
         })
-        
-        return response.ok(res, {
-            message: 'email address confirmed successfully',
+
+        sendEmailJob({
+            action: 'admin-new-user-notification', 
+            data: {
+                mailTo: process.env.ADMIN_NOTIFICATION_RECIPIENT as string,
+                userEmail: user.email,
+                userName: user.name,
+                userType: user.userType,
+                organization: user.organizations?.[0] || 'N/A'
+            }
         })
 
+        return response.ok(res, {
+            message: 'profile completed successfully',
+            // data: omit(updatedUser, ['_id', 'password', 'confirmationToken'])
+        })
+    } catch (error: any) {
+        log.error(error)
+        return response.error(res, error)
+    }
+}
+
+export async function createUserHandler(req: Request, res: Response) {
+    try {
+        const existingUserByEmail = await findUser({ email: req.body.email })
+        const existingUserByPhone = await findUser({ phone: req.body.phone })
+
+        if (existingUserByEmail) {
+            return response.conflict(res, {message: 'email already registered'})
+        }
+
+        if (existingUserByPhone) {
+            return response.conflict(res, {message: 'phone number already registered'})
+        }
+
+        const input = req.body
+
+        const user = await createUser(input)
+
+        return response.created(res, 
+            omit(user.toJSON(), ['password'])
+        )
     } catch (error: any) {
         log.error(error)
         return response.error(res, error)
@@ -397,59 +411,6 @@ export async function deleteUserHandler (req: Request, res: Response) {
         return response.error(res, error)
     }
 }
-
-// export const deleteOwnUserHandler = async (req: Request, res: Response) => {
-//     try {
-//         const currentUser = get(req, 'user')
-        
-//         // validate password
-//         let user = await validatePassword({
-//             email: currentUser.email,
-//             password: req.body.password
-//         });
-
-//         if (!user) {
-//             return response.unAuthorize(res, { message: "invalid password" })
-//         }
-
-//         // get sessions
-//         const sessions = await findSessions({ user: currentUser._id, valid: true })
-
-//         // invalidate the user sessions
-//         await Promise.all(sessions.map(async (session) => {
-//             await updateSession({ _id:session._id }, { valid: false });
-//         }))
-
-//         // set deleted flag for the user
-//         await findAndUpdate({ _id: currentUser._id }, {deleted:true}, { new: true })
-
-//         return response.ok(res, {message: 'User deleted successfully'})
-//     } catch (error: any) {
-//         log.error(error)
-//         return response.error(res, error)
-//     }
-// }
-
-// export async function updateUserHandler (req: Request, res: Response) {
-//     try {
-//         const user = get(req, 'user')
-//         const currentUser = get(req, 'user._id')
-
-//         const userId = user.id
-//         const update = req.body;
-
-//         const updateObjectCheck = checkUpdateObject(update, user)
-//         if(updateObjectCheck.error) {
-//             return response.badRequest(res, {message: updateObjectCheck.message})
-//         }
-    
-//         const updatedUser = await findAndUpdate({ _id: currentUser }, update, { new: true })
-//         return response.ok(res, updatedUser)
-//     } catch (error: any) {
-//         log.error(error)
-//         return response.error(res, error)
-//     }
-// }
 
 const checkUpdateObject = (update: any, currentUser: any) : { error: Boolean, message: string } => {
     if(update.userType && update.userType !== '' && currentUser.userType !== 'SUPER_ADMINISTRATOR') {

@@ -13,7 +13,7 @@ const QrTraceSchema = new mongoose.Schema(
   {
     referenceType: {
         type: String,
-        enum: ['shipment', 'product', 'batch'],
+        enum: ['asset', 'shipment', 'product', 'batch'],
         required: true
     },
     referenceItem: {

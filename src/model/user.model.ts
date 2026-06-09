@@ -13,8 +13,8 @@ export interface UserDocument extends mongoose.Document {
     username: string;
     name: string;
     phone: string;
-    businesses?: {
-        permissions?: string[],
+    organizations?: {
+        organization: any,
         roles: RoleDocument['_id'][]
     }[]
     adminRoles?: RoleDocument["_id"][];
@@ -35,12 +35,8 @@ const UserSchema = new mongoose.Schema(
         email: {
             type: String,
             required: true,
-            unique: true
-        },
-        username: {
-            type: String,
-            required: true,
-            unique: true
+            unique: true,
+            lowercase: true
         },
         confirmationCode: {
             type: mongoose.Schema.Types.ObjectId,
@@ -50,15 +46,17 @@ const UserSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
-        businesses: [
+        userType: {
+            type: String,
+            enum: ['user', 'exporter', 'producer', 'inspector', 'regulator', 'admin', 'super-administrator'], // 
+            default: 'user'
+        },
+        organizations: [
             {
-                business: {
+                organization: {
                     type: mongoose.Schema.Types.ObjectId, 
-                    ref: 'Business'
+                    // ref: 'Business'
                 },
-                permissions: [{
-                    type: String
-                }],
                 roles: [{
                     type: mongoose.Schema.Types.ObjectId,
                     ref: 'Role'
@@ -84,11 +82,7 @@ const UserSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
-        userType: {
-            type: String,
-            enum: ['user', 'exporter', 'producer', 'inspector', 'regulator', 'admin', 'super-administrator'], // 
-            default: 'user'
-        },
+        
         createdBy: {
             type: mongoose.Schema.Types.ObjectId, 
             ref: 'User'

@@ -1,6 +1,6 @@
 import log from '../logger';
 import emailQueue from '../queues/email.queue';
-import { sendConfirmationNotification, sendNoPublicMenuEmail, sendWelcomeEmail } from '../service/mailer.service';
+import { sendAdminNewUserNotificationEmail, sendConfirmationNotification, sendWelcomeEmail } from '../service/mailer.service';
 
 log.info('email worker started. waiting for jobs...')
 
@@ -18,11 +18,11 @@ emailQueue.process(async (job: any) => {
           await sendWelcomeEmail(job.data.data)
           break;
 
-        case 'no-public-price-card':
-          console.log('received no price card job: ', job.data)
-          await sendNoPublicMenuEmail(job.data.data)
+        case 'admin-new-user-notification':
+          console.log('received admin new user notification job: ', job.data)
+          await sendAdminNewUserNotificationEmail(job.data.data)
           break;
-      
+
         default:
           break;
     }

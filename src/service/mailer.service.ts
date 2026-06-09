@@ -15,6 +15,7 @@ import { UserEmailConfirmationTemplate } from '../static/email-templates/emal-co
 import { WelcomeTemplate } from '../static/email-templates/welcome-template';
 import { NoPublicMenuNotificationTemplate } from '../static/email-templates/no-public-menu-notification-template';
 import { PasswordResetEmailTemplate } from '../static/email-templates/password-reset-email-template';
+import { AdminNewUserNotificationTemplate } from '../static/email-templates/admin-new-useer-notification-template';
 
 const mailgunConfig: any = config.get('mailgun');
 
@@ -77,11 +78,11 @@ export async function sendConfirmationNotification (mailParams: ConfirmationMail
         const template = UserEmailConfirmationTemplate(mailParams);
         const html = await inlineCSS(template, { url: 'fake' });
         const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
             subject: 'Confirm your Email',
             // template: 'email_confirmation',
-            text: `Confirm your email on Scanserve`,
+            text: `Confirm your email on AgroTraceNG`,
             html: html,
             // "",
             // "h:X-Mailgun-Variables": JSON.stringify({
@@ -109,7 +110,11 @@ export async function sendConfirmationNotification (mailParams: ConfirmationMail
 
 export interface WelcomeMailParams extends MailParams {
     firstName: string
-    subdomain: string
+    userType: string
+    organization: {
+        name: string
+    }
+
 }
 
 export async function sendWelcomeEmail (mailParams: WelcomeMailParams) {
@@ -117,9 +122,53 @@ export async function sendWelcomeEmail (mailParams: WelcomeMailParams) {
         const template = WelcomeTemplate(mailParams);
         const html = await inlineCSS(template, { url: 'fake' });
         const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
-            subject: 'Welcome to Scanserve',
+            subject: 'Welcome to AgroTraceNG',
+            // template: 'email_confirmation',
+            text: `Glad to have you onboard`,
+            html: html,
+            // "",
+            // "h:X-Mailgun-Variables": JSON.stringify({
+            //     firstName: mailParams.firstName,
+            //     confirmationUrl: mailParams.confirmationUrl
+            // })
+        };
+
+        await mg.messages().send(data);
+        console.log('Sent!');
+        return {
+            error: false,
+            errorType: '',
+            data: {message: `mail sent to ${mailParams.mailTo}`}
+        }
+    } catch (error) {
+        console.log('error in mailer function ', error)
+        return {
+            error: true,
+            errorType: 'error',
+            data: error
+        }
+    }
+}
+
+export interface AdminNewUserNotificationMailParams extends MailParams {
+    userEmail: string,
+    userName: string,
+    userType: string,
+    organization: {
+        name: string
+    }
+}
+
+export async function sendAdminNewUserNotificationEmail (mailParams: AdminNewUserNotificationMailParams) {
+    try {
+        const template = AdminNewUserNotificationTemplate(mailParams);
+        const html = await inlineCSS(template, { url: 'fake' });
+        const data = {
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
+            to: mailParams.mailTo,
+            subject: 'Welcome to AgroTraceNG',
             // template: 'email_confirmation',
             text: `Glad to have you onboard`,
             html: html,
@@ -152,11 +201,11 @@ export async function sendOrderNotification (mailParams: OrderNotificationMailPa
         const template = OrderNotificationTemplate(mailParams);
         const html = await inlineCSS(template, { url: 'fake' });
         const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
-            subject: 'New Order on Scanserve',
+            subject: 'New Order on AgroTraceNG',
             // template: 'email_confirmation',
-            text: `There's a new order on scanserve`,
+            text: `There's a new order on agrotrace`,
             html: html,
             // "",
             // "h:X-Mailgun-Variables": JSON.stringify({
@@ -187,11 +236,11 @@ export async function sendOrderNotificationToUser (mailParams: OrderNotification
         const template = UserOrderNotificationTemplate(mailParams);
         const html = await inlineCSS(template, { url: 'fake' });
         const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
-            subject: 'Your new Order on Scanserve ecommerce',
+            subject: 'Your new Order on AgroTraceNG ecommerce',
             // template: 'email_confirmation',
-            text: `There's a new order on scanserve`,
+            text: `There's a new order on agrotrace`,
             html: html,
             // "",
             // "h:X-Mailgun-Variables": JSON.stringify({
@@ -222,11 +271,11 @@ export async function sendOrderStatusUpdateNotification (mailParams: OrderStatus
         const template = OrderStatusNotificationTemplate(mailParams);
         const html = await inlineCSS(template, { url: 'fake' });
         const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
             subject: 'Your order has been updated',
             // template: 'email_confirmation',
-            text: `There's a new order on scanserve`,
+            text: `There's a new order on agrotrace`,
             html: html,
             // "",
             // "h:X-Mailgun-Variables": JSON.stringify({
@@ -257,11 +306,11 @@ export async function sendEnquiryNotification (mailParams: EnquiryEmailParams) {
         const template = NewEnquiryNotificationTemplate(mailParams);
         const html = await inlineCSS(template, { url: 'fake' });
         const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
-            subject: 'New Enquiry from Scanserve Website',
+            subject: 'New Enquiry from AgroTraceNG Website',
             // template: 'email_confirmation',
-            text: `There's a new enquiry on scanserve website`,
+            text: `There's a new enquiry on agrotrace website`,
             html: html,
             // "",
             // "h:X-Mailgun-Variables": JSON.stringify({
@@ -295,40 +344,40 @@ export interface NoPublicMenuMailParams extends MailParams {
     pricesUrl: string
 }
 
-export async function sendNoPublicMenuEmail (mailParams: NoPublicMenuMailParams) {
-    try {
-        const template = NoPublicMenuNotificationTemplate(mailParams);
-        const html = await inlineCSS(template, { url: 'fake' });
-        const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
-            to: mailParams.mailTo,
-            subject: `${mailParams.storeName} needs a public price card, ${mailParams.firstName}`,
-            // template: 'email_confirmation',
-            text: ``,
-            html: html,
-            // "",
-            // "h:X-Mailgun-Variables": JSON.stringify({
-            //     firstName: mailParams.firstName,
-            //     confirmationUrl: mailParams.confirmationUrl
-            // })
-        };
+// export async function sendNoPublicMenuEmail (mailParams: NoPublicMenuMailParams) {
+//     try {
+//         const template = NoPublicMenuNotificationTemplate(mailParams);
+//         const html = await inlineCSS(template, { url: 'fake' });
+//         const data = {
+//             from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
+//             to: mailParams.mailTo,
+//             subject: `${mailParams.storeName} needs a public price card, ${mailParams.firstName}`,
+//             // template: 'email_confirmation',
+//             text: ``,
+//             html: html,
+//             // "",
+//             // "h:X-Mailgun-Variables": JSON.stringify({
+//             //     firstName: mailParams.firstName,
+//             //     confirmationUrl: mailParams.confirmationUrl
+//             // })
+//         };
 
-        await mg.messages().send(data);
-        console.log('Sent!');
-        return {
-            error: false,
-            errorType: '',
-            data: {message: `mail sent to ${mailParams.mailTo}`}
-        }
-    } catch (error) {
-        console.log('error in mailer function ', error)
-        return {
-            error: true,
-            errorType: 'error',
-            data: error
-        }
-    }
-}
+//         await mg.messages().send(data);
+//         console.log('Sent!');
+//         return {
+//             error: false,
+//             errorType: '',
+//             data: {message: `mail sent to ${mailParams.mailTo}`}
+//         }
+//     } catch (error) {
+//         console.log('error in mailer function ', error)
+//         return {
+//             error: true,
+//             errorType: 'error',
+//             data: error
+//         }
+//     }
+// }
 
 interface BackupMailParams extends MailParams {
     firstName: string
@@ -343,9 +392,9 @@ export const sendBackupsEmail = async (mailParams: BackupMailParams) => {
     const date = new Date().toISOString().slice(0, 10);
 
     const data = {
-        from: 'Scanserve <no-reply@excellers.cloud.ng>',
+        from: 'AgroTraceNG <no-reply@excellers.cloud.ng>',
         to: mailParams.mailTo,
-        subject: `Scanserve database dumps for ${config.get('environment')} - ${date}`,
+        subject: `AgroTraceNG database dumps for ${config.get('environment')} - ${date}`,
         text: `Please find the exported MongoDB collections attached for ${config.get('environment')} environment.`,
         attachment: files.map(file => fs.createReadStream(file.path))  // Attach file streams
     };
@@ -370,9 +419,9 @@ export async function sendPasswordResetEmail (mailParams: PasswordResetMailParam
         const template = PasswordResetEmailTemplate(mailParams);
         const html = await inlineCSS(template, { url: 'fake' });
         const data = {
-            from: 'Scanserve <no-reply@scanserve.cloud>',
+            from: 'AgroTraceNG <no-reply@agrotrace.cloud>',
             to: mailParams.mailTo,
-            subject: `Reset your Scanserve password`,
+            subject: `Reset your AgroTraceNG password`,
             text: `Follow this link to reset your password`,
             html: html,
         };

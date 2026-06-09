@@ -26,13 +26,14 @@ export interface ExporterDocument extends Document {
 
   commodities: ExportCommodity[]
 
-  contactPerson: string
-  email: string
-  phone: string
-
-  address: string
-  state: string
-  country: string
+  address: {
+    address: string
+    state: string
+    country: {
+      country: string
+      countryCode: string
+    }
+  }
 
   certifications?: string[]
 
@@ -76,35 +77,29 @@ const ExporterSchema = new Schema<ExporterDocument>(
       }
     ],
 
-    contactPerson: {
-      type: String,
-      required: true
-    },
-
-    email: {
-      type: String,
-      required: true,
-      lowercase: true
-    },
-
-    phone: {
-      type: String,
-      required: true
-    },
-
     address: {
-      type: String,
-      required: true
-    },
+      address: {
+        type: String,
+        required: true
+      },
+  
+      state: {
+        type: String,
+        required: true
+      },
 
-    state: {
-      type: String,
-      required: true
-    },
-
-    country: {
-      type: String,
-      default: "Nigeria"
+      country: {
+        country: {
+          type: String,
+          default: "Nigeria"
+        },
+      
+        countryCode: {
+          type: String,
+          default: "NG"
+        },
+      }
+      
     },
 
     certifications: [

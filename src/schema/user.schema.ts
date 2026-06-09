@@ -20,12 +20,23 @@ export const createUserSchema = object({
             // .min(6, 'password is too short - should be 6 chars min'),
             // .matches(/^[a-zA-Z0-9_.-]*$/, 'password can only contain latin characters'),
         phone: string().required('phone is required'),
-        username: string().required('username is required'),
+        userType: string().required('userType is required'),
+        // username: string().required('username is required'),
         // userType: string().required('userType is required'),
         email: string()
             .email('must be a valid email')
             .required('email is required'),
             
+    })
+});
+
+export const completeSignupSchema = object({
+    body: object({
+        stateToken: string().required('stateToken is required'),
+        type: string().required('type is required').oneOf(['exporter', 'producer', 'inspector']),
+        organization: object({
+
+        }).required('organization is required')        
     })
 });
 

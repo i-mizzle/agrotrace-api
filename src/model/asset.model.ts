@@ -18,6 +18,11 @@ export interface AssetDocument extends mongoose.Document {
 
 const AssetSchema = new mongoose.Schema(
     {
+        assetCode: {
+            type: String,
+            required: true,
+            unique: true
+        },
         producer: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Producer',

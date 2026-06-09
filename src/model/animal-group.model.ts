@@ -5,7 +5,6 @@ import { UserDocument } from './user.model';
 export interface AnimalGroupDocument extends mongoose.Document {
     name: string;
     slug: string;
-    // bussiness: BusinessDocument["_id"]
     description: string;
     permissions: string[]
     deleted: Boolean

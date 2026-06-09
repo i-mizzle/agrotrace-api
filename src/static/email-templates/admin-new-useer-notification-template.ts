@@ -1,49 +1,9 @@
-import { WelcomeMailParams } from "../../service/mailer.service";
+import { AdminNewUserNotificationMailParams } from "../../service/mailer.service";
 import config from 'config'
 const frontendUrl = config.get('frontendUrl') as string
 
 
-export const WelcomeTemplate = (input: WelcomeMailParams) => {
-  const normalizedUserType = (input.userType || '').toLowerCase();
-  const roleLabelMap: Record<string, string> = {
-    producer: 'Producer',
-    exporter: 'Exporter',
-    inspector: 'Inspector',
-    regulator: 'Regulator'
-  };
-
-  const roleActionItems: Record<string, string[]> = {
-    producer: [
-      'Register farms, harvests, and production batches with full trace history',
-      'Track inputs, handling steps, and movements from source to market',
-      'Share trusted origin data with buyers and compliance stakeholders'
-    ],
-    exporter: [
-      'Build export-ready shipment records linked to verified batch histories',
-      'Prepare documentation and traceability data for international buyers',
-      'Monitor movement and handoff points across the supply chain'
-    ],
-    inspector: [
-      'Record inspection outcomes with time-stamped and auditable evidence',
-      'Verify compliance checkpoints across producers and exporters',
-      'Flag issues early and keep transparent oversight records'
-    ],
-    regulator: [
-      'Monitor traceability and compliance activity across registered organizations',
-      'Review audit-ready records and enforcement evidence in one place',
-      'Strengthen trust through transparent regulatory oversight'
-    ]
-  };
-
-  const roleLabel = roleLabelMap[normalizedUserType] || 'User';
-  const actions = roleActionItems[normalizedUserType] || [
-    'Set up your organization profile and start recording traceability data',
-    'Collaborate with supply-chain partners on verified product histories',
-    'Use audit-ready records to improve trust, visibility, and compliance'
-  ];
-
-  const dashboardUrl = frontendUrl.startsWith('http') ? frontendUrl : `https://${frontendUrl}`;
-
+export const AdminNewUserNotificationTemplate = (input: AdminNewUserNotificationMailParams) => {
     let emailTemplate =  `<!DOCTYPE html>
     <html style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
     <head>
@@ -136,28 +96,19 @@ emailTemplate += `
                         <tr>
                             <td>
 
-                                <p>Hi ${input.firstName},</p>
+                                <p>Hi Administrator,</p>
 
-                                <p>Welcome to AgroTraceNG.</p>
+                                <p>A new user has just registered on AgrotraceNg</p>
 
-                                <p>Your account for <strong>${input.organization.name}</strong> is now active as a <strong>${roleLabel}</strong>.</p>
+                                <p>Here are the Details:<br />
+                                </p>
 
-                                <p>As a ${roleLabel.toLowerCase()}, you can now:</p>
-
-                                <li>${actions[0]}</li>
-
-                                <li>${actions[1]}</li>
-
-                                <li>${actions[2]}</li>
-
-                                <p>Log in to your dashboard to get started:</p>
-
-                                <a href="${dashboardUrl}" style="padding: 15px; border-radius: 8px; background-color: #2F2F31; color: #f6f6f6; font-size: 14px; font-weight: 500; margin-bottom: 20px; display: inline-block; margin-top: 10px; text-decoration: none;">Go to AgroTraceNG Dashboard</a>
-
-                                <p>We are excited to support your work in building a more transparent and trusted agricultural supply chain.</p>
+                                <p>Name: ${input.userName}</p>
+                                <p>Email: ${input.userEmail}</p>
+                                <p>User Type: ${input.userType}</p>
+                                <p>Organization: ${input.organization.name}</p>
 
                                 <p>Cheers,<br/>
-                                The AgrotraceNg Team</p>
 
                             </td>
                         </tr>

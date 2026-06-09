@@ -98,27 +98,28 @@ emailTemplate += `
 
                                 <p>Hi ${input.firstName},</p>
 
-                                <p>Welcome to Scanserve! 🎉 We're excited to help you manage your business smarter and faster.</p>
+                                <p>Welcome to AgroTraceNG! 🎉 We are excited to help you build trusted agricultural traceability records.</p>
 
-                                <p>Before you can start exploring your dashboard, we need to confirm your email address. This helps us keep your account secure and ensure you never miss an important update.</p>
+                                <p>To confirm your email address, please use this 6-digit OTP code:</p>
 
-                                <a href="${input.subdomain}.${frontendUrl}/confirm-email/${input?.activationCode}" style="padding: 15px; border-radius: 8px; background-color: #2F2F31; color: #f6f6f6; font-size: 14px; font-weight: 500; margin-bottom: 20px; display: inline-block; margin-top: 10px; text-decoration: none;">Confirm My Email Address</a><br/>
+                                <div style="display: inline-block; margin: 10px 0 20px; padding: 14px 22px; border-radius: 8px; border: 1px solid #d7d7d9; background-color: #f8f9fa; font-size: 28px; font-weight: 700; letter-spacing: 8px; color: #2F2F31; font-family: 'Courier New', Courier, monospace;">
+                                  ${input?.activationCode}
+                                </div>
 
-                                <i style="color:blue;">${input.subdomain}.${frontendUrl}/confirm-email/${input?.activationCode}</i><br/>
-                                <i style="color:#666;">Copy and paste the link above n your browser if the button doesn't work</i>
+                                <p style="color:#666; margin-top: 0;">This OTP expires shortly. If you did not request this code, you can safely ignore this email.</p>
                                 
                                 <p>Once confirmed, you'll get access to:</p>
 
-                                <li>A dedicated business dashboard at <strong>${input.subdomain}.scanserve.cloud</strong></li>
+                                <li>Your AgroTraceNG dashboard for your organization workspace</li>
 
-                                <li>Real-time sales tracking and inventory management</li>
+                                <li>End-to-end product traceability and verification records</li>
 
-                                <li>Automated reporting and insights to help you grow</li>
+                                <li>Audit-ready visibility across your agricultural supply chain</li>
 
-                                <p>Thanks for joining Scanserve — your smarter way to manage and scale your business.</p>
+                                <p>Thanks for joining AgroTraceNG.</p>
 
                                 <p>Cheers,<br/>
-                                The Scanserve Team</p>
+                                The AgroTraceNG Team</p>
 
                             </td>
                         </tr>

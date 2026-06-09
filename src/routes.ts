@@ -3,27 +3,22 @@ import {
     Request,
     Response 
 } from 'express';
-import { requiresUser, validateRequest } from './middleware';
+import { checkUserType, requiresUser, validateRequest } from './middleware';
 import requiresAdministrator from './middleware/requiresAdministrator';
-import { changePasswordSchema, createUserSchema, createUserSessionSchema, getUserDetailsSchema } from './schema/user.schema';
-import { adminUpdateUserHandler, changePasswordHandler, confirmEmailHandler, createUserHandler, deleteUserHandler, getAllUsersHandler, getUserDetailsHandler, getUserProfileHandler, resendEmailConfirmationHandler, resetUserPassword, signupHandler, updateUserHandler } from './controller/user.controller';
+import { changePasswordSchema, completeSignupSchema, createUserSchema, createUserSessionSchema, getUserDetailsSchema } from './schema/user.schema';
+import { adminUpdateUserHandler, changePasswordHandler, completeSignupHandler, confirmEmailHandler, createUserHandler, deleteUserHandler, getAllUsersHandler, getUserDetailsHandler, getUserProfileHandler, resendEmailConfirmationHandler, resetUserPassword, signupHandler, updateUserHandler } from './controller/user.controller';
 import { createUserSessionHandler, invalidateUserSessionHandler } from './controller/session.controller';
 import requiresPermissions from './middleware/requiresPermissions';
 import { rejectForbiddenUserFields } from './middleware/rejectForbiddenUserFields';
 import { upload } from './service/integrations/cloudinary.service';
 import { newFileHandler, newFilesHandler } from './controller/file.controller';
 import { createCategoryHandler, deleteCategoryHandler, getCategoriesHandler } from './controller/category.controller';
-import { createMenuSchema } from './schema/menu.schema';
-import { createOrderSchema } from './schema/order.schema';
 import { confirmationSchema, resendConfirmationSchema } from './schema/confirmation-code.schema';
 import { getPermissionsHandler } from './controller/permission.controller';
 import { createRoleHandler, getRoleHandler, getRolesHandler, updateRoleHandler } from './controller/role.controller';
-import { createSubscriptionPlanSchema, getSubscriptionPlanSchema } from './schema/subscription-plan.schema';
 import { requestPasswordResetHandler, resetPasswordHandler } from './controller/password-reset.controller';
 import { resetPasswordSchema, resetRequestSchema } from './schema/password-reset.schema';
-import { createBusinessSchema, getBusinessSchema } from './schema/business.schema';
-import { bulkCreateTableSchema, createTableSchema, getTableSchema } from './schema/table.schema';
-import { checkoutCartSchema, deductFromCartSchema, sendToCartSchema } from './schema/cart.schema';
+
 // import { checkoutHandler } from './controller/checkout.controller'; // Commented out - missing service dependencies
 import { listBanksHandler, validateAccountNumberHandler } from './controller/utility.controller';
 
@@ -41,7 +36,7 @@ export default function(app: Express) {
     )
 
     app.post('/onboarding/signup', 
-        // checkUserType,
+        checkUserType,
         validateRequest(createUserSchema), 
         signupHandler
     )
@@ -53,9 +48,15 @@ export default function(app: Express) {
     )
 
     // Confirm email
-    app.post('/onboarding/email-confirmation', 
+    app.post('/onboarding/signup/confirm', 
         validateRequest(confirmationSchema),
         confirmEmailHandler
+    )
+
+    // signup user
+    app.post('/onboarding/signup/complete', 
+        validateRequest(completeSignupSchema), 
+        completeSignupHandler
     )
 
     app.post('/reset-password/:user', 

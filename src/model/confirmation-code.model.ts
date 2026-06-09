@@ -28,7 +28,7 @@ const ConfirmationCodeSchema = new mongoose.Schema(
     },
     type: { 
       type: String, 
-      enum: ['password-reset', 'email-confirmation', 'admin-invitation'],
+      enum: ['password-reset', 'email-confirmation', 'signup-completion', 'admin-invitation'],
       default: 'email-confirmation',
       required: true 
     },
