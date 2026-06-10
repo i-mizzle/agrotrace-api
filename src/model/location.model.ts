@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface LocationDocument extends mongoose.Document {
@@ -60,6 +61,8 @@ const LocationSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(LocationSchema);
 
 const Location = mongoose.model<LocationDocument>('Location', LocationSchema);
 

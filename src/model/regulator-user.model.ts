@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { ConfirmationCodeDocument } from "./confirmation-code.model";
 import { UserDocument } from "./user.model";
 import { RegulatorDocument } from "./regulator.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface RegulatorUserDocument extends mongoose.Document {
     user: UserDocument['_id'];
@@ -23,6 +24,8 @@ const RegulatorUserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(RegulatorUserSchema);
 
 const RegulatorUser = mongoose.model<RegulatorUserDocument>("RegulatorUser", RegulatorUserSchema);
 

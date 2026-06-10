@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 // import bcrypt from 'bcrypt';
 // import config from 'config';
 import { UserDocument } from "./user.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface SessionDocument extends mongoose.Document {
@@ -33,6 +34,8 @@ const SessionSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(SessionSchema);
 
 const Session = mongoose.model<SessionDocument>('Session', SessionSchema);
 

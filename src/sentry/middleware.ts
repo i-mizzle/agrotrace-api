@@ -53,7 +53,7 @@ export const setSentryUser = (req: Request) => {
     const user = get(req, 'user') as any;
     if (user) {
         Sentry.setUser({
-            id: user._id?.toString(),
+            id: user.id,
             email: user.email,
             username: user.name,
             ip_address: req.ip,

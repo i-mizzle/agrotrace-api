@@ -1,5 +1,6 @@
 import { DocumentDefinition, FilterQuery, QueryOptions, UpdateQuery } from 'mongoose';
 import Asset, { AssetDocument } from '../model/asset.model';
+import { resolvePublicIdToObjectId, resolvePublicIdsToObjectIds } from '../utils/public-id-resolver';
 
 export async function createAsset(input: DocumentDefinition<AssetDocument>) {
     return Asset.create(input);
@@ -34,6 +35,28 @@ export async function findAsset(
     options: QueryOptions = { lean: true }
 ) {
     return Asset.findOne(query, {}, options).populate(expand);
+}
+
+export async function findAssetByPublicId(
+    publicId: string,
+    expand?: string | string[],
+    options: QueryOptions = { lean: true }
+) {
+    return findAsset({ id: publicId }, expand, options);
+}
+
+export async function resolveAssetPublicIdToObjectId(
+    publicId: string,
+    throwOnMissing = true
+) {
+    return resolvePublicIdToObjectId(Asset, publicId, { throwOnMissing });
+}
+
+export async function resolveAssetPublicIdsToObjectIds(
+    publicIds: string[],
+    throwOnMissing = true
+) {
+    return resolvePublicIdsToObjectIds(Asset, publicIds, { throwOnMissing });
 }
 
 export async function findAndUpdateAsset(

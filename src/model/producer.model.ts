@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface ProducerDocument extends mongoose.Document {
@@ -71,6 +72,8 @@ const ProducerSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(ProducerSchema);
 
 const Producer = mongoose.model<ProducerDocument>('Producer', ProducerSchema);
 

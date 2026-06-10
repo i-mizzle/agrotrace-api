@@ -14,8 +14,12 @@ import { sendEmailJob } from "../queues/email.queue";
 import { findRole } from "../service/role.service";
 import { ProducerDocument } from "../model/producer.model";
 import { ExporterDocument } from "../model/exporter.model";
+import { RegulatorDocument } from "../model/regulator.model";
+import { InspectorDocument } from "../model/inspector.model";
 import { createProducer } from "../service/producer.service";
 import { createExporter } from "../service/exporter.service";
+import { createRegulator } from "../service/regulator.service";
+import { createInspector } from "../service/inspector.service";
 const tokenTtl = config.get('resetTokenTtl') as number
 
 const parseUserFilters = (query: any) => {
@@ -216,7 +220,7 @@ export async function completeSignupHandler(req: Request, res: Response) {
             return response.conflict(res, {message: "Sorry, confirmation code has expired, please get a new code"})
         }
 
-        const user = await findUser({ confirmationCode: confirmationCode._id }, 'organizations.organization');
+        const user = await findUser({ confirmationCode: confirmationCode._id }, 'organizationRoles.organization');
         if(!user) {
             return response.conflict(res, {message: "user not found"})
         }
@@ -233,7 +237,8 @@ export async function completeSignupHandler(req: Request, res: Response) {
         updateQuery.signupComplete = true
 
         
-        let organization: ProducerDocument | ExporterDocument | null = null
+        let organization: ProducerDocument | ExporterDocument | RegulatorDocument | InspectorDocument | null = null
+        let organizationModel: 'Producer' | 'Exporter' | 'Regulator' | 'Inspector' | null = null
         
         if(signupType === 'producer') {
             organization = await createProducer({
@@ -248,6 +253,7 @@ export async function completeSignupHandler(req: Request, res: Response) {
                 },
                 createdBy: user._id
             })
+            organizationModel = 'Producer'
         }
         
         if(signupType === 'exporter') {
@@ -265,9 +271,47 @@ export async function completeSignupHandler(req: Request, res: Response) {
                 },
                 createdBy: user._id
             })
+            organizationModel = 'Exporter'
         }
 
-        if(signupType !== 'producer' && signupType !== 'exporter') {
+        if(signupType === 'regulator') {
+            const regulatorPayload = {
+                ...body.organization,
+                name: body.organization?.name || body.name,
+                type: body.organization?.type || body.regulatorType,
+                contactEmail: body.organization?.contactEmail || user.email,
+                contactPhone: body.organization?.contactPhone || user.phone,
+                state: body.organization?.state || body.state,
+                country: body.organization?.country || body.country
+            }
+
+            if(!regulatorPayload.name || !regulatorPayload.type) {
+                return response.badRequest(res, {message: 'regulator signup requires organization.name and organization.type'})
+            }
+
+            organization = await createRegulator(regulatorPayload as any)
+            organizationModel = 'Regulator'
+        }
+
+        if(signupType === 'inspector') {
+            const inspectorPayload = {
+                ...body.organization,
+                createdBy: user._id,
+                organizationName: body.organization?.organizationName || body.organization?.name,
+                organizationType: body.organization?.organizationType,
+                type: body.organization?.type || body.inspectorType,
+                areasOfOperation: body.organization?.areasOfOperation || [{ state: body.state, lga: body.lga }].filter((item) => item.state)
+            }
+
+            if(!inspectorPayload.organizationName || !inspectorPayload.organizationType || !inspectorPayload.type) {
+                return response.badRequest(res, {message: 'inspector signup requires organization.organizationName, organization.organizationType and organization.type'})
+            }
+
+            organization = await createInspector(inspectorPayload as any)
+            organizationModel = 'Inspector'
+        }
+
+        if(signupType !== 'producer' && signupType !== 'exporter' && signupType !== 'regulator' && signupType !== 'inspector') {
             return response.badRequest(res, {message: `organization setup for user type '${signupType}' is not yet supported`})
         }
 
@@ -282,12 +326,12 @@ export async function completeSignupHandler(req: Request, res: Response) {
             return response.notFound(res, {message: 'business owner role not found'})
         }
         
-        updateQuery.organizations = [
-            {
-                organization: organization._id,
-                roles: [role._id]
-            }
-        ]
+        updateQuery.organizationRoles = {
+            organization: organization._id,
+            organizationModel,
+            roles: [role._id]
+        }
+
 
         const updatedUser = await findAndUpdateUser({ _id: userId }, updateQuery, { new: true })
 
@@ -380,7 +424,15 @@ export async function getUserProfileHandler (req: Request, res: Response) {
             expand = expand.split(',')
         }
 
-        const user = await findUser({_id: userId}, ['businesses.business','businesses.roles'])
+        const defaultExpand = ['organizationRoles.organization', 'organizationRoles.roles']
+        const requestedExpand = Array.isArray(expand)
+            ? expand
+            : expand
+                ? [expand]
+                : []
+        const populatePaths = [...new Set([...defaultExpand, ...requestedExpand])]
+
+        let user = await findUser({_id: userId}, populatePaths)
 
         if(!user) {
             return response.notFound(res, {message: 'User not found'})
@@ -401,6 +453,9 @@ export async function getUserProfileHandler (req: Request, res: Response) {
         // }
 
         // delete userDetails.businesses
+        delete user.adminRoles
+        delete user.password
+        delete user.confirmationCode
         return response.ok(res, user)
     } catch (error: any) {
         log.error(error)
@@ -411,8 +466,23 @@ export async function getUserProfileHandler (req: Request, res: Response) {
 export async function getUserDetailsHandler (req: Request, res: Response) {
     try {
         const userId = get(req, 'params.userId');
+        const queryObject: any = req.query;
 
-        const user = await findUser({_id: userId}, ['businesses.roles', 'businesses.business'])
+        let expand = queryObject.expand || null
+
+        if(expand && expand.includes(',')) {
+            expand = expand.split(',')
+        }
+
+        const defaultExpand = ['organizationRoles.organization', 'organizationRoles.roles']
+        const requestedExpand = Array.isArray(expand)
+            ? expand
+            : expand
+                ? [expand]
+                : []
+        const populatePaths = [...new Set([...defaultExpand, ...requestedExpand])]
+
+        const user = await findUser({_id: userId}, populatePaths)
 
         if(!user) {
             return response.notFound(res, {message: 'user not found'})

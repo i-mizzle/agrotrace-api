@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose"
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export enum RegulatorType {
   GOVERNMENT = "government",
@@ -95,5 +96,7 @@ const RegulatorSchema = new Schema<RegulatorDocument>(
     timestamps: true
   }
 )
+applyPublicIdPlugin(RegulatorSchema);
+
 
 export const Regulator = mongoose.model<RegulatorDocument>("Regulator",  RegulatorSchema )

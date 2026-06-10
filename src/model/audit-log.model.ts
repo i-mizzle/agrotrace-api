@@ -1,5 +1,6 @@
 import mongoose, { Connection, Model, Schema } from 'mongoose';
 import { getAuditConnection, AuditConnectionMode } from '../db/audit-connect';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface AuditLogDocument extends mongoose.Document {
     actionType: 'create' | 'read' | 'update' | 'delete' | 'approve' | 'cancel' | 'reject';
@@ -66,6 +67,8 @@ const AuditLogSchema = new Schema(
         timestamps: { createdAt: true, updatedAt: false },
     }
 );
+
+applyPublicIdPlugin(AuditLogSchema);
 
 const rejectMutation = function(next: (error?: Error) => void) {
     next(new Error('Audit logs are append-only and cannot be modified or deleted'));

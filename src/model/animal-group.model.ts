@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface AnimalGroupDocument extends mongoose.Document {
@@ -74,6 +75,8 @@ const AnimalGroupSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(AnimalGroupSchema);
 
 const AnimalGroup = mongoose.model<AnimalGroupDocument>('AnimalGroup', AnimalGroupSchema);
 

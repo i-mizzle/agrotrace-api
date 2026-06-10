@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { ConfirmationCodeDocument } from "./confirmation-code.model";
 import { UserDocument } from "./user.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 const shipmentStatuses = ['draft', 'sealed', 'shipped', 'delivered']
 
@@ -78,6 +79,8 @@ const ShipmentSchema = new mongoose.Schema(
     },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(ShipmentSchema);
 
 const Shipment = mongoose.model<ShipmentDocument>("Shipment", ShipmentSchema);
 

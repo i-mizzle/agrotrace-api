@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 const batchStatuses = ['open', 'closed', 'exported']
@@ -101,6 +102,8 @@ const BatchSchema = new mongoose.Schema(
         collection: 'batches' 
     }
 );
+
+applyPublicIdPlugin(BatchSchema);
 
 const Batch = mongoose.model<BatchDocument>('Batch', BatchSchema);
 

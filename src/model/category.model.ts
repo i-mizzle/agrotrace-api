@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDocument } from "./user.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface CategoryDocument extends mongoose.Document {
     createdBy?: UserDocument['_id'];
@@ -50,6 +51,8 @@ const CategorySchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(CategorySchema);
 
 const Category = mongoose.model<CategoryDocument>('Category', CategorySchema);
 

@@ -39,7 +39,7 @@ export async function createUserSessionHandler(req: Request, res: Response) {
         session
     });
 
-    const refreshToken = sign(session, config.get('privateKey'), {
+    const refreshToken = sign({ id: session.id }, config.get('privateKey'), {
         expiresIn: config.get('refreshTokenTtl'), // 1 year
     });
 

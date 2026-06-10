@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { ConfirmationCodeDocument } from "./confirmation-code.model";
 import { UserDocument } from "./user.model";
 import { ExporterDocument } from "./exporter.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface ExporterUserDocument extends mongoose.Document {
     user: UserDocument['_id'];
@@ -23,6 +24,8 @@ const ExporterUserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(ExporterUserSchema);
 
 const ExporterUser = mongoose.model<ExporterUserDocument>("ExporterUser", ExporterUserSchema);
 

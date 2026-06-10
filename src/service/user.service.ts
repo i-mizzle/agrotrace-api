@@ -2,6 +2,7 @@ import { omit } from 'lodash';
 import { DocumentDefinition, FilterQuery, QueryOptions, UpdateQuery } from 'mongoose';
 import User, { UserDocument } from '../model/user.model';
 import { RoleDocument } from '../model/role.model';
+import { resolvePublicIdToObjectId, resolvePublicIdsToObjectIds } from '../utils/public-id-resolver';
 // import { BusinessDocument } from '../model/business.model';
 
 interface UserInput {
@@ -40,6 +41,27 @@ export async function findUser(
 ) {
     return User.findOne(query).lean().populate(expand);
     // return User.findOne(query).populate(['affiliateMarkup', 'wallet']).select('-bvnValidationData').lean().populate(expand);
+}
+
+export async function findUserByPublicId(
+    publicId: string,
+    expand?: string | string[]
+) {
+    return findUser({ id: publicId }, expand);
+}
+
+export async function resolveUserPublicIdToObjectId(
+    publicId: string,
+    throwOnMissing = true
+) {
+    return resolvePublicIdToObjectId(User, publicId, { throwOnMissing });
+}
+
+export async function resolveUserPublicIdsToObjectIds(
+    publicIds: string[],
+    throwOnMissing = true
+) {
+    return resolvePublicIdsToObjectIds(User, publicIds, { throwOnMissing });
 }
 
 export async function findAllUsers(

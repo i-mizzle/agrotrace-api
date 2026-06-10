@@ -3,24 +3,33 @@ import bcrypt from 'bcrypt';
 import config from 'config';
 import { ConfirmationCodeDocument } from './confirmation-code.model';
 import { RoleDocument } from './role.model';
+import { ProducerDocument } from './producer.model';
+import { ExporterDocument } from './exporter.model';
+import { RegulatorDocument } from './regulator.model';
+import { InspectorDocument } from './inspector.model';
+import { generateUniquePublicId } from '../utils/public-id';
 // import { ConfirmationCodeDocument } from './confirmation-code.model';
 // import { AffiliateMarkupDocument } from './affiliate-markup.model';
 // import { NairaWalletDocument } from './naira-wallet.model';
 // import { RoleDocument } from './role.model';
 
 export interface UserDocument extends mongoose.Document {
+    id: string;
     email: string;
     // username: string;
     name: string;
     phone: string;
-    organizations?: {
-        organization: any,
+    organizationRoles?: {
+        organization: ProducerDocument['_id'] | ExporterDocument['_id'] | RegulatorDocument['_id'] | InspectorDocument['_id']
+        organizationModel?: 'Producer' | 'Exporter' | 'Regulator' | 'Inspector'
         roles: RoleDocument['_id'][]
-    }[]
+    }
+    avatar?: string;
+    gender: 'female' | 'male'
     adminRoles?: RoleDocument["_id"][];
     idNumber?:string,
     permissions?: string[];
-    password: string;
+    password?: string;
     userType: string;
     confirmationCode?: ConfirmationCodeDocument["_id"];
     createdBy?: UserDocument["_id"];
@@ -30,8 +39,23 @@ export interface UserDocument extends mongoose.Document {
     comparePassword(candidatePassword: string): Promise<boolean>
 }
 
+const transformSerializedUser = (_doc: any, ret: any) => {
+    ret.publicId = ret.id;
+    delete ret._id;
+    delete ret.__v;
+
+    return ret;
+};
+
 const UserSchema = new mongoose.Schema(
     {
+        id: {
+            type: String,
+            unique: true,
+            index: true,
+            immutable: true,
+            required: true
+        },
         email: {
             type: String,
             required: true,
@@ -51,18 +75,20 @@ const UserSchema = new mongoose.Schema(
             enum: ['user', 'exporter', 'producer', 'inspector', 'regulator', 'admin', 'super-administrator'], // 
             default: 'user'
         },
-        organizations: [
-            {
-                organization: {
-                    type: mongoose.Schema.Types.ObjectId, 
-                    // ref: 'Business'
-                },
-                roles: [{
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: 'Role'
-                }]
-            }
-        ],
+        organizationRoles: {
+            organization: {
+                type: mongoose.Schema.Types.ObjectId, 
+                refPath: 'organizationRoles.organizationModel'
+            },
+            organizationModel: {
+                type: String,
+                enum: ['Producer', 'Exporter', 'Regulator', 'Inspector']
+            },
+            roles: [{
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Role'
+            }]
+        },
         adminRoles: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Role'
@@ -73,6 +99,13 @@ const UserSchema = new mongoose.Schema(
         name: {
             type: String,
             required: true
+        },
+        avatar: {
+            type: String
+        },
+        gender: {
+            type: String,
+            enum: ['female', 'male']
         },
         password: {
             type: String,
@@ -88,8 +121,33 @@ const UserSchema = new mongoose.Schema(
             ref: 'User'
         },
     },
-    { timestamps: true }
+    {
+        timestamps: true,
+        id: false,
+        toJSON: {
+            virtuals: true,
+            transform: transformSerializedUser
+        },
+        toObject: {
+            virtuals: true,
+            transform: transformSerializedUser
+        }
+    },
 );
+
+UserSchema.pre('validate', async function (next: mongoose.HookNextFunction) {
+    try {
+        const user = this as UserDocument;
+
+        if (!user.id) {
+            user.id = await generateUniquePublicId(User, 'User');
+        }
+
+        return next();
+    } catch (error: any) {
+        return next(error);
+    }
+});
 
 UserSchema.pre('save', async function (next: mongoose.HookNextFunction) {
     let user = this as UserDocument
@@ -112,6 +170,9 @@ UserSchema.methods.comparePassword = async function(
     candidatePassword: string
 ) {
     const user = this as UserDocument;
+    if (!user.password) {
+        return false;
+    }
     return bcrypt.compare(candidatePassword, user.password).catch((e) => false);
 }
 

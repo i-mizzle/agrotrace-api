@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { generateCode } from "../utils/utils";
 import { UserDocument } from "./user.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface ConfirmationCodeDocument extends mongoose.Document {
     code: string;
@@ -35,6 +36,8 @@ const ConfirmationCodeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(ConfirmationCodeSchema);
 
 const ConfirmationCode = mongoose.model<ConfirmationCodeDocument>("ConfirmationCode", ConfirmationCodeSchema);
 

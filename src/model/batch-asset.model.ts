@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { ConfirmationCodeDocument } from "./confirmation-code.model";
 import { UserDocument } from "./user.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface BatchAssetDocument extends mongoose.Document {
     user: UserDocument['_id'];
@@ -39,6 +40,8 @@ const BatchAssetSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(BatchAssetSchema);
 
 const BatchAsset = mongoose.model<BatchAssetDocument>("BatchAsset", BatchAssetSchema);
 

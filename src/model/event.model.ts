@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
 import { AssetEvents } from '../static/asset-events';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface EventDocument extends mongoose.Document {
@@ -99,6 +100,8 @@ const EventSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(EventSchema);
 
 const Event = mongoose.model<EventDocument>('Event', EventSchema);
 

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose"
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export enum ExporterStatus {
   PENDING = "pending",
@@ -149,5 +150,7 @@ const ExporterSchema = new Schema<ExporterDocument>(
   },
   { timestamps: true }
 )
+applyPublicIdPlugin(ExporterSchema);
+
 
 export const Exporter = mongoose.model<ExporterDocument>("Exporter", ExporterSchema)

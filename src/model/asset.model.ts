@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
+import { generateUniquePublicId } from '../utils/public-id';
 // import { BusinessDocument } from './business.model';
 
 const assetStatuses = ['active', 'growing', 'ready-for-harvest', 'harvested', 'slaughtered', 'sold', 'transferred', 'lost', 'dead', 'closed']
 
 export interface AssetDocument extends mongoose.Document {
+    id: string;
     name: string;
     slug: string;
     // bussiness: BusinessDocument["_id"]
@@ -16,8 +18,23 @@ export interface AssetDocument extends mongoose.Document {
     updatedAt?: Date;
 }
 
+const transformSerializedAsset = (_doc: any, ret: any) => {
+    ret.publicId = ret.id;
+    delete ret._id;
+    delete ret.__v;
+
+    return ret;
+};
+
 const AssetSchema = new mongoose.Schema(
     {
+        id: {
+            type: String,
+            unique: true,
+            index: true,
+            immutable: true,
+            required: true
+        },
         assetCode: {
             type: String,
             required: true,
@@ -90,8 +107,33 @@ const AssetSchema = new mongoose.Schema(
             required: true
         }
     },
-    { timestamps: true }
+    {
+        timestamps: true,
+        id: false,
+        toJSON: {
+            virtuals: true,
+            transform: transformSerializedAsset
+        },
+        toObject: {
+            virtuals: true,
+            transform: transformSerializedAsset
+        }
+    }
 );
+
+AssetSchema.pre('validate', async function (next: mongoose.HookNextFunction) {
+    try {
+        const asset = this as AssetDocument;
+
+        if (!asset.id) {
+            asset.id = await generateUniquePublicId(Asset, 'Asset');
+        }
+
+        return next();
+    } catch (error: any) {
+        return next(error);
+    }
+});
 
 const Asset = mongoose.model<AssetDocument>('Asset', AssetSchema);
 

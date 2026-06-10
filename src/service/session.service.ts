@@ -5,10 +5,10 @@ import Session, { SessionDocument } from '../model/session.model';
 import  { UserDocument } from '../model/user.model';
 import { decode, sign } from "../utils/jwt.utils";
 import { findUser } from "./user.service";
+import { resolvePublicIdToObjectId } from '../utils/public-id-resolver';
 
-export async function createSession(userId: string, userAgent: string, storeId?: string) {
-    const session = await Session.create({ user: userId, userAgent, business: storeId });
-    return session.toJSON()
+export async function createSession(userId: UserDocument['_id'] | string, userAgent: string, storeId?: string) {
+    return Session.create({ user: userId, userAgent, business: storeId });
 }
 
 export function createAccessToken({
@@ -24,13 +24,13 @@ export function createAccessToken({
 }) {
     const accessToken = sign(
         { ...{
+            id: user.id,
             userType: user.userType,
             email: user.email,
             phone: user.phone,
             firstName: user.name,
-            permissions: user.permissions,
-            _id: user._id
-        }, session: session._id },
+            permissions: user.permissions
+        }, session: session.id },
         config.get('privateKey'),
         { expiresIn: config.get('accessTokenTtl') }
     );
@@ -41,10 +41,12 @@ export function createAccessToken({
 export async function reIssueAccessToken ({ refreshToken }: { refreshToken: string }) {
     // decode the refresh token
     const { decoded } = decode(refreshToken);
-    if(!decoded || !get(decoded, '_id')) return false;
+    const sessionPublicId = get(decoded, 'id');
+
+    if(!decoded || !sessionPublicId) return false;
 
     // get the session 
-    const session = await Session.findById(get(decoded, '_id'));
+    const session = await Session.findOne({ id: sessionPublicId });
 
     // make sure the session is still valid
     if (!session || !session?.valid) return false;
@@ -55,6 +57,13 @@ export async function reIssueAccessToken ({ refreshToken }: { refreshToken: stri
     const accessToken = createAccessToken({ user, session })
 
     return accessToken;
+}
+
+export async function resolveSessionPublicIdToObjectId(
+    publicId: string,
+    throwOnMissing = true
+) {
+    return resolvePublicIdToObjectId(Session, publicId, { throwOnMissing });
 }
 
 export async function updateSession(

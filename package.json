@@ -7,7 +7,9 @@
     "start": "node dist/src/app.js",
     "dev": "nodemon --config nodemon.json src/app.ts",
     "workers": "ts-node src/workers/start.ts",
-    "build": "tsc -p ."
+    "build": "tsc -p .",
+    "backfill:user-ids": "ts-node src/seeds/backfill-user-id.seed.ts",
+    "backfill:asset-ids": "ts-node src/seeds/backfill-asset-id.seed.ts"
   },
   "author": "Immanuel Onum",
   "license": "ISC",

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { ConfirmationCodeDocument } from "./confirmation-code.model";
 import { UserDocument } from "./user.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface ShipmentBatchDocument extends mongoose.Document {
     user: UserDocument['_id'];
@@ -35,6 +36,8 @@ const ShipmentBatchSchema = new mongoose.Schema(
   },
   { timestamps: true, collection: 'shipmentbatches' }
 );
+
+applyPublicIdPlugin(ShipmentBatchSchema);
 
 const ShipmentBatch = mongoose.model<ShipmentBatchDocument>("ShipmentBatch", ShipmentBatchSchema);
 

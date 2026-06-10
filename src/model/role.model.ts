@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface RoleDocument extends mongoose.Document {
@@ -48,6 +49,8 @@ const RoleSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(RoleSchema);
 
 const Role = mongoose.model<RoleDocument>('Role', RoleSchema);
 

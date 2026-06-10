@@ -1,6 +1,8 @@
 import { get } from 'lodash';
 import { Request, Response, NextFunction } from 'express';
 import { decode } from '../utils/jwt.utils';
+import { resolveUserPublicIdToObjectId } from '../service/user.service';
+import { resolveSessionPublicIdToObjectId } from '../service/session.service';
 // import { reIssueAccessToken } from "../service/session.service";
 
 const deserializeUser = async (
@@ -20,8 +22,22 @@ const deserializeUser = async (
     const { decoded, expired } = decode(accessToken);
 
     if(decoded) {
+        const decodedPayload = decoded as Record<string, any>;
+        const userPublicId = get(decoded, 'id');
+        const sessionPublicId = get(decoded, 'session');
+
+        const [userObjectId, sessionObjectId] = await Promise.all([
+            userPublicId ? resolveUserPublicIdToObjectId(userPublicId, false) : null,
+            sessionPublicId ? resolveSessionPublicIdToObjectId(sessionPublicId, false) : null,
+        ]);
+
         // @ts-ignore
-        req.user = decoded;
+        req.user = {
+            ...decodedPayload,
+            _id: userObjectId || undefined,
+            session: sessionObjectId || undefined,
+            sessionId: sessionPublicId || undefined,
+        };
         return next();
     }
 

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface CropDocument extends mongoose.Document {
@@ -59,6 +60,8 @@ const CropSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+applyPublicIdPlugin(CropSchema);
 
 const Crop = mongoose.model<CropDocument>('Crop', CropSchema);
 

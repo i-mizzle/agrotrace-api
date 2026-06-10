@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface CertificationDocument extends mongoose.Document {
     code: string;
@@ -26,6 +27,8 @@ const CertificationSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(CertificationSchema);
 
 const Certification = mongoose.model<CertificationDocument>("Certification", CertificationSchema);
 

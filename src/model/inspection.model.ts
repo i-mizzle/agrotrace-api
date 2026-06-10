@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { generateCode } from "../utils/utils";
 import { UserDocument } from "./user.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface InspectionDocument extends mongoose.Document {
     code: string;
@@ -52,6 +53,8 @@ const InspectionSchema = new mongoose.Schema(
     },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(InspectionSchema);
 
 const Inspection = mongoose.model<InspectionDocument>("Inspection", InspectionSchema);
 

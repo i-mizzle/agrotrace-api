@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { ConfirmationCodeDocument } from "./confirmation-code.model";
 import { UserDocument } from "./user.model";
 import { ProducerDocument } from "./producer.model";
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface ProducerUserDocument extends mongoose.Document {
     user: UserDocument['_id'];
@@ -23,6 +24,8 @@ const ProducerUserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyPublicIdPlugin(ProducerUserSchema);
 
 const ProducerUser = mongoose.model<ProducerUserDocument>("ProducerUser", ProducerUserSchema);
 
