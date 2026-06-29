@@ -1,66 +1,97 @@
 // service/qrcode.service.ts
+import dotenv from 'dotenv';
+dotenv.config();
+
+import { Readable } from 'stream';
 import QRCode from 'qrcode'
 import cloudinary from 'cloudinary'
 import mongoose from 'mongoose'
-// import { findAndUpdateTable } from './table.service'
-// import { findAndUpdateStore, findStore } from './business.service'
+import { findAndUpdateQrTrace } from './qr-trace.service';
 
-cloudinary.v2.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!
-})
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+const apiKey = process.env.CLOUDINARY_API_KEY;
+const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-export const generateAndUploadQRCode = async (tableId: string, data: {tableUrl: string}) => {
+if (cloudName && apiKey && apiSecret) {
+  cloudinary.v2.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret
+  })
+}
+
+export const generateAndUploadQRCode = async (traceId: string, data: {traceUrl: string}) => {
   try {
-    console.log('generateAndUploadQRCode received tableId:', tableId, 'type:', typeof tableId)
+    console.log('generateAndUploadQRCode received traceId:', traceId, 'type:', typeof traceId)
 
-    if (!mongoose.Types.ObjectId.isValid(tableId)) {
-      throw new Error('Invalid tableId passed to QR generator: ' + tableId)
+    const traceIdString = traceId?.toString();
+    if (!traceIdString || !mongoose.Types.ObjectId.isValid(traceIdString)) {
+      throw new Error('Invalid traceId passed to QR generator: ' + traceId)
     }
-    const objectId = new mongoose.Types.ObjectId(tableId)
 
-    // generate QR
-    const qrDataUrl = await QRCode.toDataURL(data.tableUrl, {
-        width: 1000,     // higher resolution
-        margin: 0,       // no border
-        scale: 10,       // further increases pixel density
-        errorCorrectionLevel: 'H', // best for logo overlays
-    })
-    const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, '')
+    const objectId = new mongoose.Types.ObjectId(traceIdString)
 
-    // upload to Cloudinary
-    const uploadResponse = await cloudinary.v2.uploader.upload(`data:image/png;base64,${base64Data}`, {
-      folder: 'scanserve-assets/qr-codes',
-      public_id: `qr-${Date.now()}-${tableId}`,
-      overwrite: true,
-      resource_type: 'image'
+    if (!data?.traceUrl) {
+      throw new Error('Missing traceUrl in QR job payload')
+    }
+
+    console.log('Generating QR image for:', data.traceUrl)
+    const qrBuffer = await QRCode.toBuffer(data.traceUrl, {
+      width: 512,
+      margin: 0,
+      scale: 4,
+      errorCorrectionLevel: 'H',
     })
 
-    // update store
-    // const updatedTable = await findAndUpdateTable(
-    //   { _id: objectId },
-    //   {
-    //     tableUrl: data.tableUrl,
-    //     tableQrCode: uploadResponse.secure_url
-    //   },
-    //   { new: true }
-    // )
+    if (!cloudName || !apiKey || !apiSecret) {
+      throw new Error('Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.')
+    }
 
-    // if (!updatedTable || (updatedTable as any).error) {
-    //   console.error('findAndUpdateStore returned null or error for id:', tableId)
-    //   throw new Error('table not found or error when updating QR code (id: ' + tableId + ')')
-    // }
+    console.log('Uploading QR image to Cloudinary for trace:', traceIdString)
+    const uploadResponse = await new Promise<any>((resolve, reject) => {
+      const uploadStream = cloudinary.v2.uploader.upload_stream(
+        {
+          folder: 'agrotrace-assets/qr-codes',
+          public_id: `qr-${Date.now()}-${traceIdString}`,
+          overwrite: true,
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) {
+            reject(error)
+            return
+          }
+          resolve(result)
+        }
+      )
 
-    // // Only log _id if it exists
-    // if ((updatedTable as any)._id) {
-    //   console.log('table updated OK:', (updatedTable as any)._id)
-    // } else {
-    //   console.log('table updated OK, but _id not present:', updatedTable)
-    // }
+      Readable.from(qrBuffer).pipe(uploadStream)
+    })
+
+    console.log('Updating QR trace document:', traceIdString)
+    const updatedQRTrace = await findAndUpdateQrTrace(
+      { _id: objectId },
+      {
+        traceUrl: data.traceUrl,
+        qrCode: uploadResponse.secure_url
+      },
+      { new: true }
+    )
+
+    if (!updatedQRTrace || (updatedQRTrace as any).error) {
+      console.error('findAndUpdateQrTrace returned null or error for id:', traceIdString)
+      throw new Error('QR trace not found or error when updating QR code (id: ' + traceIdString + ')')
+    }
+
+    if ((updatedQRTrace as any)._id) {
+      console.log('QR trace updated OK:', (updatedQRTrace as any)._id)
+    } else {
+      console.log('QR trace updated OK, but _id not present:', updatedQRTrace)
+    }
+
     return uploadResponse.secure_url
-  } catch (err) {
-    console.error('QR code upload failed:', err)
+  } catch (err: any) {
+    console.error('QR code generation failed at step:', err?.message || err)
     throw err
   }
 }

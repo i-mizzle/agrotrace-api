@@ -4,11 +4,17 @@ import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface CropDocument extends mongoose.Document {
-    name: string;
-    slug: string;
-    // bussiness: BusinessDocument["_id"]
-    description: string;
-    permissions: string[]
+    species: string;
+    breed: string;
+    plantingDate: Date;
+    season: 'wet' | 'dry' | 'perennial';
+    expectedHarvestDate: Date;
+    seedSource: string;
+    irrigationSource?: string;
+    fertilizersUsed?: string[];
+    pesticidesUsed?: string[];
+    producer: mongoose.Schema.Types.ObjectId;
+    asset: mongoose.Schema.Types.ObjectId;
     deleted: Boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
@@ -25,6 +31,13 @@ const CropSchema = new mongoose.Schema(
         asset: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Asset',
+        },
+        species: {
+            type: String,
+            required: true
+        },
+        breed: {
+            type: String,
             required: true
         },
         plantingDate: {

@@ -321,9 +321,9 @@ export async function completeSignupHandler(req: Request, res: Response) {
         }
 
         // get organization owner role
-        const role = await findRole({slug: 'business-owner'})
+        const role = await findRole({slug: 'producer-business-owner'})
         if(!role){
-            return response.notFound(res, {message: 'business owner role not found'})
+            return response.notFound(res, {message: 'producer business owner role not found'})
         }
         
         updateQuery.organizationRoles = {

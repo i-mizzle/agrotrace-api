@@ -1,14 +1,15 @@
 import mongoose from "mongoose";
-import { ConfirmationCodeDocument } from "./confirmation-code.model";
-import { UserDocument } from "./user.model";
 import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 import { ProducerDocument } from "./producer.model";
 
 export interface QrTraceDocument extends mongoose.Document {
+    id?: string;
     referenceType: 'asset' | 'shipment' | 'product' | 'batch';
     referenceItem: mongoose.Types.ObjectId;
-    id: string;
     producer: ProducerDocument["_id"];
+    traceUrl?: string;
+    qrCode?: string;
+    deleted?: boolean
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -24,17 +25,16 @@ const QrTraceSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         required: true,
     },
-    id: {
-        type: String,
-        unique: true,
-        index: true,
-        immutable: true,
-        required: true
-    },
     producer: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: "Producer",
         required: true 
+    },
+    traceUrl: {
+        type: String
+    },
+    qrCode: {
+        type: String,
     }
   },
   { timestamps: true }

@@ -57,6 +57,46 @@ const BatchSchema = new mongoose.Schema(
                 }
             }
         ],
+        assetContributions: [
+            {
+                asset: { 
+                    type: mongoose.Schema.Types.ObjectId, 
+                    ref: "Asset",
+                },
+                contribution:{
+                    quantity: {
+                        type: Number,
+                    },
+                    unit: {
+                        type: String,
+                        enum: ['kg', 'tons', 'head', 'cartons', 'bags'],
+                    },
+                    date: {
+                        type: Date,
+                    }
+                }
+            }
+        ],
+        productContributions: [
+            {
+                asset: { 
+                    type: mongoose.Schema.Types.ObjectId, 
+                    ref: "Product",
+                },
+                contribution:{
+                    quantity: {
+                        type: Number,
+                    },
+                    unit: {
+                        type: String,
+                        enum: ['kg', 'tons', 'head', 'cartons', 'bags'],
+                    },
+                    date: {
+                        type: Date,
+                    }
+                }
+            }
+        ],
         quantity:{ 
             total: {
                 type: Number

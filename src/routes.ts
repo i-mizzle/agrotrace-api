@@ -21,6 +21,10 @@ import { resetPasswordSchema, resetRequestSchema } from './schema/password-reset
 
 // import { checkoutHandler } from './controller/checkout.controller'; // Commented out - missing service dependencies
 import { listBanksHandler, validateAccountNumberHandler } from './controller/utility.controller';
+import { createLocationHandler, deleteLocationHandler, getLocationHandler, getLocationsHandler, updateLocationHandler } from './controller/location.controller';
+import { createLocationSchema } from './schema/location.schema';
+import { createAssetHandler, deleteAssetHandler, getAssetHandler, getAssetsHandler, updateAssetHandler } from './controller/asset.controller';
+import { createAssetSchema } from './schema/asset.schema';
 
 export default function(app: Express) {
     app.get('/ping', (req: Request, res: Response) => res.sendStatus(200))
@@ -111,7 +115,77 @@ export default function(app: Express) {
         adminUpdateUserHandler
     )
 
-//  Get all users 
+    /**
+     * Locations Routes
+     */
+
+    app.post('/locations',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.locations.*', 'producer.locations.create']),
+        validateRequest(createLocationSchema), 
+        createLocationHandler
+    )
+
+    app.get('/locations',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.locations.*', 'producer.locations.read']),
+        getLocationsHandler
+    )
+
+    app.get('/locations/:locationId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.locations.*', 'producer.locations.read']),
+        getLocationHandler
+    )
+
+    app.patch('/locations/:locationId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.locations.*', 'producer.locations.update']),
+        updateLocationHandler
+    )
+
+    app.delete('/locations/:locationId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.locations.*', 'producer.locations.update']),
+        deleteLocationHandler
+    )
+
+    /**
+     * Assets Routes
+     */ 
+
+    app.post('/assets',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.assets.*', 'producer.assets.create']),
+        validateRequest(createAssetSchema), 
+        createAssetHandler
+    )
+
+    app.get('/assets',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.assets.*', 'producer.assets.read']),
+        getAssetsHandler
+    )
+
+    app.get('/assets/:assetId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.assets.*', 'producer.assets.read']),
+        getAssetHandler
+    )
+
+    app.patch('/assets/:assetId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.assets.*', 'producer.assets.update']),
+        updateAssetHandler
+    )
+
+    app.delete('/assets/:assetId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.assets.*', 'producer.assets.delete']),
+        deleteAssetHandler
+    )
+
+    //  Get all users 
     app.post('/users/create-user', 
         // checkUserType,
         requiresUser,

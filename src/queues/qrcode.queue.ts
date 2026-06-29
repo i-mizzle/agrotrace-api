@@ -1,4 +1,6 @@
 import Bull from 'bull';
+import { ProducerDocument } from '../model/producer.model';
+import { mongoose } from '../db/connect';
 
 // Initialize the queue with Redis
 const qrCodeQueue = new Bull('qrCodeQueue', {
@@ -10,10 +12,11 @@ const qrCodeQueue = new Bull('qrCodeQueue', {
 
 // Function to add a slack message job to the queue
 export const sendQrCodeJob = (messageData: { 
-    tableId: string
+    traceId: string
     data: {
-        tableUrl: string
-        // businessFrontUrl: string
+        traceUrl: string
+        referenceItem: mongoose.Schema.Types.ObjectId;
+        producer: ProducerDocument["_id"]
     } 
 }) => {
     qrCodeQueue.add(messageData, {

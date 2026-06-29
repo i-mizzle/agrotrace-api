@@ -4,11 +4,17 @@ import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface AnimalDocument extends mongoose.Document {
-    name: string;
-    slug: string;
-    // bussiness: BusinessDocument["_id"]
-    description: string;
-    permissions: string[]
+    producer: mongoose.Schema.Types.ObjectId;
+    asset: mongoose.Schema.Types.ObjectId;
+    sex: 'male' | 'female';
+    dateOfBirth: Date;
+    idMethod?: 'ear-tag' | 'rfid' | 'visual';
+    idNumber?: string;
+    origin: 'born-on-farm' | 'purchased';
+    acquisitionDate?: Date;
+    weightAtRegistration?: string; //KG
+    species: string;
+    breed: string;
     deleted: Boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
@@ -25,7 +31,6 @@ const AnimalSchema = new mongoose.Schema(
         asset: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Asset',
-            required: true
         },
         sex: {
             type: String,
@@ -38,8 +43,7 @@ const AnimalSchema = new mongoose.Schema(
         },
         idMethod: {
             type: String,
-            enum: ['ear-tag', 'rfid', 'visual'],
-            required: true
+            enum: ['ear-tag', 'rfid', 'visual']
         },
         idNumber: {
             type: String
@@ -54,6 +58,14 @@ const AnimalSchema = new mongoose.Schema(
         },
         weightAtRegistration: { //KG
             type: String
+        },
+        species: {
+            type: String,
+            required: true
+        },
+        breed: {
+            type: String,
+            required: true
         },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId, 

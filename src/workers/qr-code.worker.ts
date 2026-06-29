@@ -12,11 +12,12 @@ qrCodeQueue.process(async (job: any) => {
   try {
     console.log('.....................................................................')
     console.log('Processing QR job: ', job.id, job.data)
-    const qrCodeUrl = await generateAndUploadQRCode(job.data.tableId, job.data.data)
+    const qrCodeUrl = await generateAndUploadQRCode(job.data.traceId, job.data.data)
 
-    log.info(`qr-code created for ${job.data.tableId}: ${qrCodeUrl}`);
+    log.info(`qr-code created for ${job.data.traceId}: ${qrCodeUrl}`);
   } catch (error) {
-    log.error(`qr-code creation failed to send to ${job.data.storeFrontUrl}: `, error);
+    const targetUrl = job.data?.data?.traceUrl ?? job.data?.traceUrl ?? 'unknown';
+    log.error(`qr-code creation failed to send to ${targetUrl}: `, error);
     throw error; // Allows Bull to handle retries and logging
   }
 });

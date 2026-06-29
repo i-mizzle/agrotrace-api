@@ -17,10 +17,10 @@ export const seedRoles = async () => {
                 deleted: false
             },
             {
-                name: "Business owner",
-                slug: "business-owner",
+                name: "Producer Business owner",
+                slug: "producer-business-owner",
                 type: "user",
-                description: "This role can do all things within the context of a business",
+                description: "This role can do all things within the context of a producer business",
                 permissions: ["business.*"],
                 deleted: false
             }

@@ -6,7 +6,6 @@ import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 export interface RoleDocument extends mongoose.Document {
     name: string;
     slug: string;
-    // bussiness: BusinessDocument["_id"]
     description: string;
     permissions: string[]
     deleted: Boolean
@@ -17,10 +16,6 @@ export interface RoleDocument extends mongoose.Document {
 
 const RoleSchema = new mongoose.Schema(
     {
-        // business: {
-        //     type: mongoose.Schema.Types.ObjectId,
-        //     ref: 'Business'
-        // },
         name: {
             type: String,
             required: true

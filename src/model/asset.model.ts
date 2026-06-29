@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
 import { generateUniquePublicId } from '../utils/public-id';
+import { CropDocument } from './crop.model';
+import { AnimalDocument } from './animal.model';
+import { AnimalGroupDocument } from './animal-group.model';
 // import { BusinessDocument } from './business.model';
 
 const assetStatuses = ['active', 'growing', 'ready-for-harvest', 'harvested', 'slaughtered', 'sold', 'transferred', 'lost', 'dead', 'closed']
@@ -8,11 +11,22 @@ const assetStatuses = ['active', 'growing', 'ready-for-harvest', 'harvested', 's
 export interface AssetDocument extends mongoose.Document {
     id: string;
     name: string;
-    slug: string;
-    // bussiness: BusinessDocument["_id"]
-    description: string;
-    permissions: string[]
-    deleted: Boolean
+    producer: string;
+    type: 'crop' | 'animal' | 'animal-group';
+    crop?: CropDocument["_id"];
+    animal?: AnimalDocument["_id"];
+    animalGroup?: AnimalGroupDocument["_id"];
+    // species: string;
+    // breed: string;
+    currentLocation: string;
+    ownershipStatus: 'owned' | 'contracted' | 'aggregated';
+    status: typeof assetStatuses[number];
+    statusHistory: {
+        status: typeof assetStatuses[number];
+        date: Date;
+        changedBy: UserDocument["_id"];
+    }[];
+    deleted: boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
     updatedAt?: Date;
@@ -35,10 +49,9 @@ const AssetSchema = new mongoose.Schema(
             immutable: true,
             required: true
         },
-        assetCode: {
+        name: {
             type: String,
             required: true,
-            unique: true
         },
         producer: {
             type: mongoose.Schema.Types.ObjectId,
@@ -47,7 +60,7 @@ const AssetSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['crop', 'animal', 'animalGroup'],
+            enum: ['crop', 'animal', 'animal-group'],
             required: true
         },
         crop: {
@@ -61,14 +74,6 @@ const AssetSchema = new mongoose.Schema(
         animalGroup: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'AnimalGroup'
-        },
-        species: {
-            type: String,
-            required: true
-        },
-        breed: {
-            type: String,
-            required: true
         },
         currentLocation: {
             type: mongoose.Schema.Types.ObjectId,
@@ -101,6 +106,10 @@ const AssetSchema = new mongoose.Schema(
                 }
             }
         ],
+        deleted: {
+            type: Boolean,
+            default: false
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId, 
             ref: 'User',

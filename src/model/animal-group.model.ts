@@ -4,10 +4,23 @@ import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 export interface AnimalGroupDocument extends mongoose.Document {
-    name: string;
-    slug: string;
-    description: string;
-    permissions: string[]
+    producer: mongoose.Schema.Types.ObjectId;
+    asset: mongoose.Schema.Types.ObjectId;
+    size: number;
+    type: 'poultry' | 'fish' | 'goats' | 'cattle' | 'others';
+    species: string;
+    breed: string;
+    startDate: Date;
+    expectedHarvestDate: Date;
+    mortality?: {
+        total: number;
+        incidents: {
+            count: number;
+            reasonDescription: string;
+            date: string;
+        }[];
+    };
+    feedTypes?: string[];
     deleted: Boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
@@ -24,7 +37,6 @@ const AnimalGroupSchema = new mongoose.Schema(
         asset: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Asset',
-            required: true
         },
         size: {
             type: Number,
@@ -33,6 +45,14 @@ const AnimalGroupSchema = new mongoose.Schema(
         type: {
             type: String,
             enum: ['poultry', 'fish', 'goats', 'cattle', 'others'],
+            required: true
+        },
+        species: {
+            type: String,
+            required: true
+        },
+        breed: {
+            type: String,
             required: true
         },
         startDate: {
