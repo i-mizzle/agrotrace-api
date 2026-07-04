@@ -162,7 +162,7 @@ export const getLocationHandler = async (req: Request, res: Response) => {
             expand = expand.split(',')
         }
 
-        const location = await findLocation({ _id: locationId, deleted: false, producer: currentUser.organizationRoles!.organization._id }, expand)
+        const location = await findLocation({ id: locationId, deleted: false, producer: currentUser.organizationRoles!.organization._id }, expand)
 
         if(!location) {
             return response.notFound(res, {message: 'location not found'})

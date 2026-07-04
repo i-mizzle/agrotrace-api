@@ -2,12 +2,18 @@ import * as Sentry from '@sentry/node';
 import log from '../logger';
 
 export const initializeSentry = () => {
+    const sentryEnabled = process.env.SENTRY_ENABLED === 'true';
     const dsn = process.env.SENTRY_DSN;
     const environment = process.env.NODE_ENV || 'development';
 
+    if (!sentryEnabled) {
+        log.info('Sentry disabled. Set SENTRY_ENABLED=true to enable error tracking.');
+        return false;
+    }
+
     if (!dsn) {
         log.warn('Sentry DSN not provided. Error tracking disabled.');
-        return;
+        return false;
     }
 
     Sentry.init({
@@ -46,6 +52,8 @@ export const initializeSentry = () => {
         environment,
         dsn: dsn.substring(0, 20) + '***',
     });
+
+    return true;
 };
 
 export default Sentry;

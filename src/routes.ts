@@ -6,7 +6,7 @@ import {
 import { checkUserType, requiresUser, validateRequest } from './middleware';
 import requiresAdministrator from './middleware/requiresAdministrator';
 import { changePasswordSchema, completeSignupSchema, createUserSchema, createUserSessionSchema, getUserDetailsSchema } from './schema/user.schema';
-import { adminUpdateUserHandler, changePasswordHandler, completeSignupHandler, confirmEmailHandler, createUserHandler, deleteUserHandler, getAllUsersHandler, getUserDetailsHandler, getUserProfileHandler, resendEmailConfirmationHandler, resetUserPassword, signupHandler, updateUserHandler } from './controller/user.controller';
+import { adminUpdateUserHandler, changePasswordHandler, completeSignupHandler, confirmEmailHandler, createUserHandler, deleteUserHandler, getUserDetailsHandler, getUserProfileHandler, getUsersHandler, publicGetUsersHandler, resendEmailConfirmationHandler, resetUserPassword, signupHandler, updateUserHandler } from './controller/user.controller';
 import { createUserSessionHandler, invalidateUserSessionHandler } from './controller/session.controller';
 import requiresPermissions from './middleware/requiresPermissions';
 import { rejectForbiddenUserFields } from './middleware/rejectForbiddenUserFields';
@@ -25,6 +25,8 @@ import { createLocationHandler, deleteLocationHandler, getLocationHandler, getLo
 import { createLocationSchema } from './schema/location.schema';
 import { createAssetHandler, deleteAssetHandler, getAssetHandler, getAssetsHandler, updateAssetHandler } from './controller/asset.controller';
 import { createAssetSchema } from './schema/asset.schema';
+import { createEventHandler, getEventHandler, getEventsHandler } from './controller/event.controller';
+import { createEventSchema } from './schema/event.schema';
 
 export default function(app: Express) {
     app.get('/ping', (req: Request, res: Response) => res.sendStatus(200))
@@ -185,6 +187,30 @@ export default function(app: Express) {
         deleteAssetHandler
     )
 
+    /**
+     * Events actions
+     */
+
+    app.post('/events',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.events.*', 'producer.events.create']),
+        validateRequest(createEventSchema), 
+        createEventHandler
+    )
+
+    app.get('/events',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.events.*', 'producer.events.read']),
+        getEventsHandler
+    )
+
+    app.get('/events/:eventId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.events.*', 'producer.events.read']),
+        getEventHandler
+    )
+
+
     //  Get all users 
     app.post('/users/create-user', 
         // checkUserType,
@@ -194,12 +220,17 @@ export default function(app: Express) {
         createUserHandler
     )
 
-    app.get('/users/all', 
-        requiresUser, 
+    app.get('/users/', 
+        requiresAdministrator, 
         requiresPermissions(['*', 'business.*', 'business.users.*', 'business.users.read']),
-        getAllUsersHandler
+        getUsersHandler
     )
 
+
+    app.get('/public/users/', 
+        requiresUser, 
+        publicGetUsersHandler
+    )
 //  Get user account details by admin
     app.get('/users/profile/:userId', 
         requiresUser, 

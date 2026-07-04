@@ -1,15 +1,16 @@
 import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
-import { generateUniquePublicId } from '../utils/public-id';
 import { CropDocument } from './crop.model';
 import { AnimalDocument } from './animal.model';
 import { AnimalGroupDocument } from './animal-group.model';
+import { LocationDocument } from './location.model';
+import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
 const assetStatuses = ['active', 'growing', 'ready-for-harvest', 'harvested', 'slaughtered', 'sold', 'transferred', 'lost', 'dead', 'closed']
 
 export interface AssetDocument extends mongoose.Document {
-    id: string;
+    id?: string;
     name: string;
     producer: string;
     type: 'crop' | 'animal' | 'animal-group';
@@ -18,7 +19,7 @@ export interface AssetDocument extends mongoose.Document {
     animalGroup?: AnimalGroupDocument["_id"];
     // species: string;
     // breed: string;
-    currentLocation: string;
+    currentLocation: LocationDocument["_id"];
     ownershipStatus: 'owned' | 'contracted' | 'aggregated';
     status: typeof assetStatuses[number];
     statusHistory: {
@@ -26,29 +27,14 @@ export interface AssetDocument extends mongoose.Document {
         date: Date;
         changedBy: UserDocument["_id"];
     }[];
-    deleted: boolean
+    deleted?: boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
     updatedAt?: Date;
 }
 
-const transformSerializedAsset = (_doc: any, ret: any) => {
-    ret.publicId = ret.id;
-    delete ret._id;
-    delete ret.__v;
-
-    return ret;
-};
-
 const AssetSchema = new mongoose.Schema(
     {
-        id: {
-            type: String,
-            unique: true,
-            index: true,
-            immutable: true,
-            required: true
-        },
         name: {
             type: String,
             required: true,
@@ -117,32 +103,11 @@ const AssetSchema = new mongoose.Schema(
         }
     },
     {
-        timestamps: true,
-        id: false,
-        toJSON: {
-            virtuals: true,
-            transform: transformSerializedAsset
-        },
-        toObject: {
-            virtuals: true,
-            transform: transformSerializedAsset
-        }
+        timestamps: true
     }
 );
 
-AssetSchema.pre('validate', async function (next: mongoose.HookNextFunction) {
-    try {
-        const asset = this as AssetDocument;
-
-        if (!asset.id) {
-            asset.id = await generateUniquePublicId(Asset, 'Asset');
-        }
-
-        return next();
-    } catch (error: any) {
-        return next(error);
-    }
-});
+applyPublicIdPlugin(AssetSchema);
 
 const Asset = mongoose.model<AssetDocument>('Asset', AssetSchema);
 

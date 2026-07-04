@@ -1,6 +1,7 @@
 export default {
     port: process.env.PORT,
     host: process.env.HOST,
+    sentryEnabled: process.env.SENTRY_ENABLED === 'true',
     dbUri:  process.env.DB_URI,
     auditDb: {
         readerUri: process.env.AUDIT_DB_READER_URI || process.env.AUDIT_DB_URI,

@@ -1,20 +1,29 @@
 
-const config = require("config")
-const cloudinary = require("cloudinary").v2;
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
+import config from "config";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 import multer from "multer";
+import { Request } from "express";
+
+type CloudinaryConfig = {
+    CLOUD_NAME: string;
+    API_KEY: string;
+    API_SECRET: string;
+};
+
+const cloudinaryConfig = config.get<CloudinaryConfig>("cloudinary");
 
 cloudinary.config({ 
-    cloud_name: config.cloudinary.CLOUD_NAME, 
-    api_key: config.cloudinary.API_KEY, 
-    api_secret: config.cloudinary.API_SECRET
+    cloud_name: cloudinaryConfig.CLOUD_NAME,
+    api_key: cloudinaryConfig.API_KEY,
+    api_secret: cloudinaryConfig.API_SECRET
 });
 
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: {
-        folder: "scanserve-assets",
-    },
+    params: () => ({
+        folder: "agrotrace-assets",
+    }),
 });
 
 export const upload = multer({ storage: storage });

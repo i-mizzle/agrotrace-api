@@ -40,7 +40,8 @@ const parseUserFilters = (query: any) => {
     }
 
     if (userType) {
-        filters.userType = userType
+        const types = userType.split(',').map((type: string) => type.trim())
+        filters.userType = { $in: types }
     }
             
     if (minDateCreated) {
@@ -649,7 +650,7 @@ export async function adminUpdateUserHandler (req: Request, res: Response) {
     }
 }
 
-export async function getAllUsersHandler (req: Request, res: Response) {
+export async function getUsersHandler (req: Request, res: Response) {
     try {
         const user = get(req, 'user._id')
         const currentUser = await findUser({_id: user})
@@ -676,6 +677,46 @@ export async function getAllUsersHandler (req: Request, res: Response) {
             perPage: resPerPage,
             total: users.total,
             users: users.data
+        }
+        return response.ok(res, responseObject)
+    } catch (error) {
+        return response.error(res, error)
+    }
+}
+
+export async function publicGetUsersHandler (req: Request, res: Response) {
+    try {
+        const user = get(req, 'user._id')
+        const currentUser = await findUser({_id: user})
+        if(!currentUser) {
+            return response.notFound(res, {message: 'user not found'})
+        }
+        const queryObject: any = req.query;
+        const resPerPage = +queryObject.perPage || 30; // results per page
+        const page = +queryObject.page || 1; // Page 
+        const filters = parseUserFilters(queryObject)
+
+        let expand = queryObject.expand || null
+
+        if(expand && expand.includes(',')) {
+            expand = expand.split(',')
+        }
+        
+        const users = await findAllUsers({...filters, 
+            _id: { $ne: currentUser._id },
+            userType: { $nin: ['super-administrator', 'admin'] }
+        }, resPerPage, page, expand);
+
+        const returnedUsers = users.data.map((user) => {
+            const userObject = omit(user, ['password', 'confirmationCode', 'emailConfirmed', 'signupComplete', '_id', 'createdAt', 'updatedAt', '__v', 'idNumber', 'email', 'phone', 'adminRoles', 'permissions', 'organizationRoles.roles', 'organizationRoles.organizationModel'])
+            return userObject
+        })
+    
+        const responseObject = {
+            page,
+            perPage: resPerPage,
+            total: users.total,
+            users: returnedUsers
         }
         return response.ok(res, responseObject)
     } catch (error) {

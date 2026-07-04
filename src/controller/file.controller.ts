@@ -12,6 +12,7 @@ export const newFileHandler = async (req: Request, res: Response) => {
             file: (req as unknown as MulterRequest).file.path
         })
     } catch (error:any) {
+        console.log('error uploading file: ', error)
         return response.error(res, error)
     } 
 }

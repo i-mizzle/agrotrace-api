@@ -2,15 +2,34 @@ import mongoose from 'mongoose';
 import { UserDocument } from './user.model';
 import { AssetEvents } from '../static/asset-events';
 import { applyPublicIdPlugin } from './plugins/public-id.plugin';
-// import { BusinessDocument } from './business.model';
+import { ProducerDocument } from './producer.model';
+import { AssetDocument } from './asset.model';
+import { LocationDocument } from './location.model';
 
 export interface EventDocument extends mongoose.Document {
-    name: string;
-    slug: string;
-    // bussiness: BusinessDocument["_id"]
-    description: string;
-    permissions: string[]
-    deleted: Boolean
+    producer: ProducerDocument['_id']
+    asset: AssetDocument['_id']
+    eventCategory: 'production' | 'health' | 'movement' | 'processing' | 'quality' | 'export';
+    eventTypeCategory: string;
+    newLocation?: LocationDocument['_id']
+    eventType: string;
+    date: Date;
+    location: LocationDocument['_id'];
+    performedBy: UserDocument["_id"];
+    recordedOffline?: boolean;
+    notes?: {
+        note: string;
+        createdBy: UserDocument["_id"];
+    }[];
+    attachments?: {
+        type: 'image' | 'video' | 'document';
+        url: string;
+    }[];
+    quantityAffected?: number;
+    weightAffected?: number;
+    costEstimate?: number;
+    mortalityCount?: number;
+    nextDueDate?: Date;
     createdBy: UserDocument["_id"]
     createdAt?: Date;
     updatedAt?: Date;
@@ -74,7 +93,13 @@ const EventSchema = new mongoose.Schema(
         ],
         attachments: [
             {
-                type: String
+                type: {
+                    type: String,
+                    enum: ['image', 'video', 'document'],
+                },
+                url: {
+                    type: String
+                }
             }
         ],
         quantityAffected: {
@@ -91,6 +116,10 @@ const EventSchema = new mongoose.Schema(
         },
         nextDueDate: {
             type: Date
+        },
+        newLocation: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Location'
         },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId, 

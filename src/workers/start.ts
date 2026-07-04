@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { connect } from '../db/connect';
+import { retryAllFailedJobsOnStartup } from './retry-failed-jobs';
 
 const startWorkers = async () => {
   await connect();
@@ -11,6 +12,8 @@ const startWorkers = async () => {
     import('./audit-log.worker'),
     import('./qr-code.worker'),
   ]);
+
+  await retryAllFailedJobsOnStartup();
 };
 
 startWorkers().catch((error) => {

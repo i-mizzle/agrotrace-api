@@ -35,6 +35,14 @@ const QrTraceSchema = new mongoose.Schema(
     },
     qrCode: {
         type: String,
+    },
+    scanCount: {
+        type: Number,
+        default: 0
+    },
+    deleted: {
+        type: Boolean,
+        default: false
     }
   },
   { timestamps: true }

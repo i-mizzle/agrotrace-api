@@ -76,8 +76,8 @@ export async function findAllUsers(
         .select('-password')
         .populate(expand)
         .sort({ 'createdAt' : -1 })
-        // .skip((perPage * page) - perPage)
-        // .limit(perPage)
+        .skip((perPage * page) - perPage)
+        .limit(perPage)
 
     return {
         total,

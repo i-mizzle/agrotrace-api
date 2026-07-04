@@ -17,11 +17,11 @@ export interface AnimalGroupDocument extends mongoose.Document {
         incidents: {
             count: number;
             reasonDescription: string;
-            date: string;
+            date: Date;
         }[];
     };
     feedTypes?: string[];
-    deleted: Boolean
+    deleted?: Boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
     updatedAt?: Date;
@@ -77,7 +77,7 @@ const AnimalGroupSchema = new mongoose.Schema(
                         type: String
                     },
                     date: {
-                        type: String
+                        type: Date
                     }
                 }
             ]

@@ -17,19 +17,25 @@ const mergeTransform = (existingTransform?: (doc: any, ret: any, options: any) =
 };
 
 export const applyPublicIdPlugin = (schema: mongoose.Schema<any>) => {
-    if (schema.path('id')) {
-        return;
+    if (!schema.path('id')) {
+        schema.add({
+            id: {
+                type: String,
+                immutable: true,
+                required: true
+            }
+        });
     }
 
-    schema.add({
-        id: {
-            type: String,
+    schema.index(
+        { id: 1 },
+        {
             unique: true,
-            index: true,
-            immutable: true,
-            required: true
+            partialFilterExpression: {
+                id: { $type: 'string' }
+            }
         }
-    });
+    );
 
     schema.set('id', false);
 

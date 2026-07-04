@@ -12,16 +12,16 @@ import { createAnimal, findAndUpdateAnimal, deleteAnimal } from "../service/anim
 import { createCrop, findAndUpdateCrop, deleteCrop } from "../service/crop.service";
 import { createAnimalGroup, findAndUpdateAnimalGroup, deleteAnimalGroup } from "../service/animal-group.service";
 import { sendQrCodeJob } from "../queues/qrcode.queue";
-import { createQrTrace } from "../service/qr-trace.service";
+import { createQrTrace, findQrTrace } from "../service/qr-trace.service";
 
 const parseAssetsFilters = (query: any) => {
-    const { minDateCreated, maxDateCreated, type, lga, state, searchTerm, waterSource, soilType, producer } = query; 
+    const { minDateCreated, maxDateCreated, type, location, searchTerm, producer } = query; 
 
     const filters: any = {}; 
 
     if (searchTerm) {
         filters.$or = [
-            { addressDescription: { $regex: searchTerm, $options: "i" } },
+            // { addressDescription: { $regex: searchTerm, $options: "i" } },
             { name: { $regex: searchTerm, $options: "i" } },
         ];
     }
@@ -30,20 +30,8 @@ const parseAssetsFilters = (query: any) => {
         filters.producer = producer;
     }
 
-    if (lga) {
-        filters.lga = lga;
-    }
-
-    if (state) {
-        filters.state = state;
-    }
-
-    if (waterSource) {
-        filters.waterSourceType = waterSource;
-    }
-
-    if (soilType) {
-        filters.soilType = soilType;
+    if (location) {
+        filters.currentLocation = location;
     }
     
     if (type) {
@@ -260,13 +248,15 @@ export const getAssetHandler = async (req: Request, res: Response) => {
             expand = expand.split(',')
         }
 
-        const asset = await findAsset({ _id: assetId, deleted: false, producer: currentUser.organizationRoles!.organization._id }, expand)
+        const asset = await findAsset({ id: assetId, deleted: false, producer: currentUser.organizationRoles!.organization._id }, expand)
 
         if(!asset) {
             return response.notFound(res, {message: 'asset not found'})
         }
 
-        return response.ok(res, asset)
+        const assetQr = await findQrTrace({referenceItem: asset._id, referenceType: 'asset', producer: currentUser.organizationRoles!.organization._id})
+
+        return response.ok(res, {...asset, assetQr})
         
     } catch (error:any) {
         return response.error(res, error)
@@ -295,7 +285,21 @@ export const updateAssetHandler = async (req: Request, res: Response) => {
         if(currentUser.organizationRoles!.organization._id.toString() !== asset.producer.toString()) {
             return response.forbidden(res, {message: "You are not authorized to update this asset"})
         }
-        let update = req.body
+
+        const body = req.body as any;
+        const update: any = { ...body };
+
+        if (body.status && body.status !== asset.status) {
+            update.$push = {
+                statusHistory: {
+                    status: body.status,
+                    date: new Date(),
+                    changedBy: userId
+                }
+            };
+
+            delete update.statusHistory;
+        }
 
 
         const updated = await findAndUpdateAsset({_id: asset._id}, update, {new: true})

@@ -6,7 +6,7 @@ dotenv.config();
 
 // Initialize Sentry FIRST, before any other imports
 import { initializeSentry } from './sentry/init';
-initializeSentry();
+const isSentryEnabled = initializeSentry();
 
 import cors from 'cors';
 process.env["NODE_CONFIG_DIR"] =  path.join(__dirname, '..', 'config')
@@ -35,7 +35,9 @@ const httpServer = createServer(app);
 app.use(cors());
 app.use(enableCors);
 app.use(deserializeUser)
-app.use(sentryRequestHandler);
+if (isSentryEnabled) {
+    app.use(sentryRequestHandler);
+}
 app.use(express.json({ limit: '75mb' }));
 app.use(express.urlencoded({ limit: '75mb', extended: true }));
 app.use(subdomainParser);
@@ -51,7 +53,9 @@ connect().then(() => {
         scheduleBackupWithRetries();
         // schedulePromotionsStatusToggler()
         routes(app);
-        setupSentryErrorHandler(app);
+        if (isSentryEnabled) {
+            setupSentryErrorHandler(app);
+        }
     });
 
     // Schedule the cron job

@@ -17,8 +17,6 @@ const requiresPermissions = (requiredPermissions: Array<string>) => async (req: 
             ['organizationRoles.roles', 'adminRoles']
         );
 
-        console.log('userDetails: ', userDetails)
-
         if (!userDetails) {
             response.forbidden(res, { message: "You do not have the required permissions to access this resource" })
             return
@@ -36,8 +34,6 @@ const requiresPermissions = (requiredPermissions: Array<string>) => async (req: 
             ...organizationRolePermissions,
             ...adminRolePermissions,
         ])];
-
-        console.log('user permissions: ', permissions)
 
         const hasPermissions = permissions.filter(item => requiredPermissions.includes(item));
 

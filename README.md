@@ -37,6 +37,7 @@ AUDIT_HASH_SECRET=replace-with-strong-secret
 AUDIT_INTEGRITY_SCHEDULE=*/15 * * * *
 
 # Optional Sentry
+SENTRY_ENABLED=false
 SENTRY_DSN=
 ```
 
@@ -342,7 +343,8 @@ Request lifecycle:
 
 ### Required Environment Variables
 
-- `SENTRY_DSN`: Sentry project DSN. If missing, Sentry is disabled.
+- `SENTRY_ENABLED`: Set to `true` to enable Sentry in deployed environments.
+- `SENTRY_DSN`: Sentry project DSN.
 
 ### Optional Environment Variables
 
@@ -353,6 +355,7 @@ Request lifecycle:
 Example `.env` values:
 
 ```env
+SENTRY_ENABLED=true
 SENTRY_DSN=https://<public-key>@o<org-id>.ingest.sentry.io/<project-id>
 NODE_ENV=production
 APP_VERSION=1.12.0
@@ -373,7 +376,7 @@ The SDK is initialized in `src/sentry/init.ts` with:
 - `beforeSend` filter:
 	- Validation-related errors are dropped in non-production environments.
 
-If `SENTRY_DSN` is not set, the app logs a warning and continues without Sentry.
+If `SENTRY_ENABLED` is not `true`, the app skips Sentry entirely. If Sentry is enabled but `SENTRY_DSN` is missing, the app logs a warning and continues without Sentry.
 
 ### Middleware Order (Important)
 
@@ -465,10 +468,11 @@ app.get('/example', asyncHandler(async (req, res) => {
 Use this checklist:
 
 1. Set `SENTRY_DSN` in your environment.
-2. Start API.
-3. Trigger a test error from any route.
-4. Confirm event appears in Sentry Issues.
-5. Verify event has:
+2. Set `SENTRY_ENABLED=true` in your environment.
+3. Start API.
+4. Trigger a test error from any route.
+5. Confirm event appears in Sentry Issues.
+6. Verify event has:
 	 - request URL/method,
 	 - stack trace,
 	 - environment,
@@ -495,6 +499,7 @@ app.get('/sentry-test', (_req, _res) => {
 No events in Sentry:
 
 - Ensure `SENTRY_DSN` is set in the running environment.
+- Ensure `SENTRY_ENABLED=true` in the running environment.
 - Confirm outbound network access to Sentry ingest endpoint.
 - Check startup logs for "Sentry initialized successfully".
 
