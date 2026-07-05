@@ -9,6 +9,7 @@ import { createEvent, findAndUpdateEvent, findEvent, findEvents } from "../servi
 import { createAsset, findAndUpdateAsset, findAsset } from "../service/asset.service";
 import { createAnimalGroup, findAndUpdateAnimalGroup, findAnimalGroup } from "../service/animal-group.service";
 import { findLocation } from "../service/location.service";
+import { createProduct } from "../service/product.service";
 
 const parseEventsFilters = async (query: any) => {
     const { minDateCreated, maxDateCreated, asset, recorderOffline, eventCategory, eventTypeCategory, eventType, event, searchTerm, producer, performedBy, minNextDueDate, maxNextDueDate } = query; 
@@ -190,6 +191,19 @@ export const createEventHandler = async (req: Request, res: Response) => {
                     }]
                 }
             }, {new: true})
+        }
+
+        // create a product if the event is a processing event and the asset is an animal or animal group 
+        if(event && body.eventCategory === 'processing' && (eventAsset.type === 'animal' || eventAsset.type === 'animal-group')) {
+            await Promise.all(body.products.map(async (product: any) => {
+                await createProduct({
+                    ...product,
+                    createdBy: userId,
+                    producer: currentUser.organizationRoles!.organization._id,
+                    sourceAsset: eventAsset._id,
+                    sourceEvent: event._id
+                })
+            }))
         }
         
         // Enqueue audit log (non-blocking)

@@ -5,10 +5,22 @@ import { productTypes } from "../static/product-types";
 import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface ProductDocument extends mongoose.Document {
-    code: string;
+    batch?: mongoose.Schema.Types.ObjectId;
+    category: string;
     type: string;
-    expiry: Date
-    valid?: boolean;
+    sourceAsset: mongoose.Schema.Types.ObjectId;
+    sourceEvent?: mongoose.Schema.Types.ObjectId;
+    wholeBatch: boolean;
+    quantity: {
+        amount: number;
+        unit: string;
+    };
+    processingMethod?: string;
+    yieldPercentage?: number;
+    storageCondition?: string;
+    packingType?: string;
+    labelCode?: string;
+    createdBy: UserDocument['_id'];
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -18,7 +30,6 @@ const ProductSchema = new mongoose.Schema(
         batch: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Batch',
-            required: true
         },
         category: {
             type: String,
@@ -29,6 +40,15 @@ const ProductSchema = new mongoose.Schema(
             type: String,
             enum: productTypes.flatMap(type => type.types),
             required: true
+        },
+        sourceAsset: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Asset',
+            required: true
+        },
+        sourceEvent: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Event',
         },
         wholeBatch: {
             type: Boolean,

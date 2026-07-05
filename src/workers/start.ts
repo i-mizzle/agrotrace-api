@@ -13,7 +13,7 @@ const startWorkers = async () => {
     import('./qr-code.worker'),
   ]);
 
-  await retryAllFailedJobsOnStartup();
+  // await retryAllFailedJobsOnStartup();
 };
 
 startWorkers().catch((error) => {
