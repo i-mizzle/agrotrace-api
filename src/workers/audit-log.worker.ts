@@ -29,7 +29,23 @@ import { appendAuditLog, verifyAuditChainIntegrity } from '../service/audit-log.
             const integrity = await verifyAuditChainIntegrity();
 
             if (!integrity.valid) {
-                log.error('Audit integrity check failed', integrity);
+                const failedItemIds = Array.from(
+                    new Set(
+                        integrity.failures
+                            .map((failure) => failure.itemId)
+                            .filter((itemId): itemId is string => Boolean(itemId))
+                    )
+                );
+
+                log.error('Audit integrity check failed', {
+                    checkedRecords: integrity.checkedRecords,
+                    errorCount: integrity.errors.length,
+                    firstBrokenSequence: integrity.firstBrokenSequence,
+                    failedItemIds,
+                    brokenLinks: integrity.brokenLinks,
+                    failures: integrity.failures,
+                    errors: integrity.errors,
+                });
                 return;
             }
 
