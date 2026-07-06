@@ -115,17 +115,70 @@ export async function verifyAuditChainIntegrity(): Promise<AuditIntegrityCheckRe
     const AuditLog = await getAuditLogModel('reader');
     const logs = await AuditLog.find({}, {}, { lean: true }).sort({ sequence: 1 });
     const errors: string[] = [];
+    const failures: AuditIntegrityCheckResult['failures'] = [];
+    const brokenLinks: AuditIntegrityCheckResult['brokenLinks'] = [];
 
     let expectedSequence = 1;
     let previousHash: string | null = null;
+    let previousRecordId: string | null = null;
+    let firstBrokenSequence: number | null = null;
 
     for (const log of logs) {
+        const recordId = String(log._id);
+        const itemId = log.item ? String(log.item) : null;
+
         if (log.sequence !== expectedSequence) {
-            errors.push(`Sequence mismatch at record ${log._id}: expected ${expectedSequence}, got ${log.sequence}`);
+            const message = `Sequence mismatch at record ${recordId}: expected ${expectedSequence}, got ${log.sequence}`;
+            errors.push(message);
+            failures.push({
+                type: 'sequence_mismatch',
+                sequence: log.sequence,
+                recordId,
+                itemId,
+                expected: expectedSequence,
+                actual: log.sequence,
+                previousSequence: expectedSequence - 1,
+                previousRecordId,
+                message,
+            });
+            brokenLinks.push({
+                fromSequence: expectedSequence - 1,
+                toSequence: log.sequence,
+                fromRecordId: previousRecordId,
+                toRecordId: recordId,
+                reason: 'sequence_mismatch',
+            });
+
+            if (firstBrokenSequence === null) {
+                firstBrokenSequence = log.sequence;
+            }
         }
 
         if ((log.previousHash || null) !== previousHash) {
-            errors.push(`Previous hash mismatch at sequence ${log.sequence}`);
+            const message = `Previous hash mismatch at sequence ${log.sequence}`;
+            errors.push(message);
+            failures.push({
+                type: 'previous_hash_mismatch',
+                sequence: log.sequence,
+                recordId,
+                itemId,
+                expected: previousHash,
+                actual: log.previousHash || null,
+                previousSequence: expectedSequence - 1,
+                previousRecordId,
+                message,
+            });
+            brokenLinks.push({
+                fromSequence: expectedSequence - 1,
+                toSequence: log.sequence,
+                fromRecordId: previousRecordId,
+                toRecordId: recordId,
+                reason: 'previous_hash_mismatch',
+            });
+
+            if (firstBrokenSequence === null) {
+                firstBrokenSequence = log.sequence;
+            }
         }
 
         const computedHash = buildAuditHash({
@@ -141,11 +194,28 @@ export async function verifyAuditChainIntegrity(): Promise<AuditIntegrityCheckRe
         });
 
         if (computedHash !== log.hash) {
-            errors.push(`Hash mismatch at sequence ${log.sequence}`);
+            const message = `Hash mismatch at sequence ${log.sequence}`;
+            errors.push(message);
+            failures.push({
+                type: 'hash_mismatch',
+                sequence: log.sequence,
+                recordId,
+                itemId,
+                expected: computedHash,
+                actual: log.hash,
+                previousSequence: expectedSequence - 1,
+                previousRecordId,
+                message,
+            });
+
+            if (firstBrokenSequence === null) {
+                firstBrokenSequence = log.sequence;
+            }
         }
 
         expectedSequence += 1;
         previousHash = log.hash;
+        previousRecordId = recordId;
     }
 
     return {
@@ -153,5 +223,8 @@ export async function verifyAuditChainIntegrity(): Promise<AuditIntegrityCheckRe
         checkedRecords: logs.length,
         lastSequence: logs.length === 0 ? 0 : logs[logs.length - 1].sequence,
         errors,
+        failures,
+        brokenLinks,
+        firstBrokenSequence,
     };
 }

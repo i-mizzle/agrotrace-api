@@ -5,10 +5,15 @@ import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 import { ProducerDocument } from './producer.model';
 import { AssetDocument } from './asset.model';
 import { LocationDocument } from './location.model';
+import { ProductDocument } from './product.model';
+import { BatchDocument } from './batch.model';
 
 export interface EventDocument extends mongoose.Document {
     producer: ProducerDocument['_id']
-    asset: AssetDocument['_id']
+    asset?: AssetDocument['_id']
+    product?: ProductDocument['_id']
+    batch?: BatchDocument['_id']
+    description?: string;
     eventCategory: 'production' | 'health' | 'movement' | 'processing' | 'quality' | 'export';
     eventTypeCategory: string;
     newLocation?: LocationDocument['_id']
@@ -45,7 +50,17 @@ const EventSchema = new mongoose.Schema(
         asset: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Asset',
-            required: true
+        },
+        product: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Product',
+        },
+        batch: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Batch',
+        },
+        description: {
+            type: String
         },
         eventCategory: {
             type: String,

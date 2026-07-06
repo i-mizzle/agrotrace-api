@@ -11,6 +11,22 @@ import { createAnimalGroup, findAndUpdateAnimalGroup, findAnimalGroup } from "..
 import { findLocation } from "../service/location.service";
 import { createProduct } from "../service/product.service";
 
+const getAssetStatusForEvent = (eventType: string, assetType: string) => {
+    // Mortality for animal groups is handled separately; only single animals become 'dead'.
+    if (eventType === 'death') {
+        return assetType === 'animal' ? 'dead' : null;
+    }
+
+    const statusByEventType: Record<string, string> = {
+        harvest: 'harvested',
+        slaughter: 'slaughtered',
+        shipped: 'exported',
+        transfer: 'transferred'
+    };
+
+    return statusByEventType[eventType] || null;
+}
+
 const parseEventsFilters = async (query: any) => {
     const { minDateCreated, maxDateCreated, asset, recorderOffline, eventCategory, eventTypeCategory, eventType, event, searchTerm, producer, performedBy, minNextDueDate, maxNextDueDate } = query; 
 
@@ -193,8 +209,22 @@ export const createEventHandler = async (req: Request, res: Response) => {
             }, {new: true})
         }
 
+        const nextAssetStatus = getAssetStatusForEvent(body.eventType, eventAsset.type);
+        if (event && nextAssetStatus && nextAssetStatus !== eventAsset.status) {
+            await findAndUpdateAsset({_id: eventAsset._id}, {
+                status: nextAssetStatus,
+                $push: {
+                    statusHistory: {
+                        status: nextAssetStatus,
+                        date: new Date(),
+                        changedBy: userId
+                    }
+                }
+            }, {new: true})
+        }
+
         // create a product if the event is a processing event and the asset is an animal or animal group 
-        if(event && body.eventCategory === 'processing' && (eventAsset.type === 'animal' || eventAsset.type === 'animal-group')) {
+        if(event && body.eventCategory === 'processing' && body.products && body.products.length > 0 && (eventAsset.type === 'animal' || eventAsset.type === 'animal-group')) {
             await Promise.all(body.products.map(async (product: any) => {
                 await createProduct({
                     ...product,

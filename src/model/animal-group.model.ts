@@ -7,7 +7,7 @@ export interface AnimalGroupDocument extends mongoose.Document {
     producer: mongoose.Schema.Types.ObjectId;
     asset: mongoose.Schema.Types.ObjectId;
     size: number;
-    type: 'poultry' | 'fish' | 'goats' | 'cattle' | 'others';
+    type: 'poultry' | 'fish' | 'goats' | 'cattle' | 'sheep' | 'others';
     species: string;
     breed: string;
     startDate: Date;
@@ -44,7 +44,7 @@ const AnimalGroupSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['poultry', 'fish', 'goats', 'cattle', 'others'],
+            enum: ['poultry', 'fish', 'goats', 'cattle', 'sheep', 'others'],
             required: true
         },
         species: {

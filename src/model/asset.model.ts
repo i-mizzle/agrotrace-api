@@ -7,7 +7,7 @@ import { LocationDocument } from './location.model';
 import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 // import { BusinessDocument } from './business.model';
 
-const assetStatuses = ['active', 'growing', 'ready-for-harvest', 'harvested', 'slaughtered', 'sold', 'transferred', 'lost', 'dead', 'closed']
+const assetStatuses = ['active', 'growing', 'ready-for-harvest', 'harvested', 'slaughtered', 'sold', 'transferred', 'lost', 'dead', 'exported', 'closed']
 
 export interface AssetDocument extends mongoose.Document {
     id?: string;

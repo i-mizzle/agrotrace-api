@@ -5,6 +5,7 @@ export const createEventSchema = object({
         asset: string().required('asset id is required'),
         eventCategory: string().required('event category is required').oneOf(['production', 'health', 'movement', 'processing', 'quality', 'export']),
         eventTypeCategory: string().required('event type category is required'),
+        description: string().required('description is required').min(5, 'description must be at least 10 characters long').max(65, 'description must be at most 500 characters long'),
         eventType: string().required('event type is required'),
         newLocation: string().when('eventType', {
             is: (eventType: string) => ['transfer', 'relocation'].includes(eventType),
