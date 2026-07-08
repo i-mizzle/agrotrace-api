@@ -11,6 +11,7 @@ const startWorkers = async () => {
     import('./email.worker'),
     import('./audit-log.worker'),
     import('./qr-code.worker'),
+    import('./risk-alert.worker'),
   ]);
 
   // await retryAllFailedJobsOnStartup();

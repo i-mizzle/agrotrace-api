@@ -16,6 +16,8 @@ export interface ProducerDocument extends mongoose.Document {
         state: string
         lga: string
     }
+    riskScore: number;
+    riskLevel: 'low' | 'moderate' | 'high' | 'critical';
     deleted: Boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;
@@ -60,7 +62,18 @@ const ProducerSchema = new mongoose.Schema(
             lga: {
                 type: String
             }
-        }, 
+        },
+        riskScore: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 100,
+        },
+        riskLevel: {
+            type: String,
+            enum: ['low', 'moderate', 'high', 'critical'],
+            default: 'low',
+        },
         deleted: {
             type: Boolean,
             default: false

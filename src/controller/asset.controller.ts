@@ -150,24 +150,25 @@ export const createAssetHandler = async (req: Request, res: Response) => {
             throw error;
         }
 
-        const traceUrl = `https://agrotraceng.cloud/trace/${asset.id}`;
 
         // create QR trace for the asset
         const qrTracePayload = {
             referenceType: 'asset' as const, 
             referenceItem: asset._id,
             producer: currentUser.organizationRoles!.organization._id,
-            traceUrl,
         }
 
+        
         const qrTrace = await createQrTrace(qrTracePayload)
+
+        const traceUrl = `https://agrotraceng.cloud/trace/${qrTrace?.id}`;
         
         if(qrTrace) {
            // send qr code job to queue
             sendQrCodeJob({
                 traceId: qrTrace._id!,
                 data: {
-                    traceUrl: qrTrace.traceUrl!,
+                    traceUrl: traceUrl,
                     referenceItem: asset._id,
                     producer: currentUser.organizationRoles!.organization._id,
                 }

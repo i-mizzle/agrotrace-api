@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import * as response from '../responses'
 import { get } from "lodash";
-import { getJsDate } from "../utils/utils";
+import { getJsDate, slugify } from "../utils/utils";
 import log from "../logger";
 import { enqueueAuditLog } from "../queues/audit-log.queue";
 import { findUser } from "../service/user.service";
@@ -9,7 +9,7 @@ import { createEvent, findAndUpdateEvent, findEvent, findEvents } from "../servi
 import { createAsset, findAndUpdateAsset, findAsset } from "../service/asset.service";
 import { createAnimalGroup, findAndUpdateAnimalGroup, findAnimalGroup } from "../service/animal-group.service";
 import { findLocation } from "../service/location.service";
-import { createProduct } from "../service/product.service";
+import { createAndEnqueueProductQr, createProduct } from "../service/product.service";
 
 const getAssetStatusForEvent = (eventType: string, assetType: string) => {
     // Mortality for animal groups is handled separately; only single animals become 'dead'.
@@ -226,13 +226,16 @@ export const createEventHandler = async (req: Request, res: Response) => {
         // create a product if the event is a processing event and the asset is an animal or animal group 
         if(event && body.eventCategory === 'processing' && body.products && body.products.length > 0 && (eventAsset.type === 'animal' || eventAsset.type === 'animal-group')) {
             await Promise.all(body.products.map(async (product: any) => {
-                await createProduct({
+                const newProduct = await createProduct({
                     ...product,
+                    slug: `${slugify(product.name)}-${new Date().getTime()}`,
                     createdBy: userId,
                     producer: currentUser.organizationRoles!.organization._id,
                     sourceAsset: eventAsset._id,
                     sourceEvent: event._id
                 })
+                await createAndEnqueueProductQr(newProduct, currentUser);
+
             }))
         }
         

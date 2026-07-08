@@ -19,6 +19,7 @@ import enableCors from './middleware/enableCors';
 import { sentryRequestHandler, setupSentryErrorHandler } from './sentry/middleware';
 
 import { scheduleBackup } from './cron/backup.cron';
+import { scheduleRiskAlerts } from './cron/risk-alert.cron';
 import { connect, mongoose } from './db/connect';
 // import { schedulePromotionsStatusToggler } from './cron/promotion-status.cron';
 import { subdomainParser } from './middleware/subdomainParser';
@@ -71,6 +72,7 @@ const retryInterval = 5000; // Retry interval in milliseconds (5 seconds)
 const scheduleBackupWithRetries = (retries = 0) => {
     if (mongoose.connection.readyState === 1) {
         scheduleBackup();
+        scheduleRiskAlerts();
         seedRoles()
         seedUsers()
     } else {

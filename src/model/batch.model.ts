@@ -6,10 +6,46 @@ import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 const batchStatuses = ['open', 'closed', 'exported']
 
 export interface BatchDocument extends mongoose.Document {
-    name: string;
-    slug: string;
-    description: string;
-    permissions: string[]
+    producer: mongoose.Schema.Types.ObjectId;
+    batchCode: string;
+    type: 'crop' | 'meat' | 'live-animal' | 'others';
+    status: typeof batchStatuses[number];
+    statusHistory: {
+        status: typeof batchStatuses[number];
+        date: Date;
+        changedBy: UserDocument["_id"];
+    }[];
+    assetContributions: {
+        asset: mongoose.Schema.Types.ObjectId;
+        contribution:{
+            quantity: number;
+            unit: 'kg' | 'tons' | 'head' | 'cartons' | 'bags';
+            date: Date;
+        }
+    }[];
+    productContributions: {
+        asset: mongoose.Schema.Types.ObjectId;
+        contribution:{
+            quantity: number;
+            unit: 'kg' | 'tons' | 'head' | 'cartons' | 'bags';
+            date: Date;
+        }
+    }[];
+    quantity:{ 
+        total: number;
+        unit: 'kg' | 'tons' | 'head' | 'cartons' | 'bags';
+    };
+    aggregation: {
+        aggregated: boolean;
+        sources: {
+            source: string;
+            total: number;
+            unit: 'kg' | 'tons' | 'head' | 'cartons' | 'bags';
+        }[];
+    };
+    storageLocation?: mongoose.Schema.Types.ObjectId;
+    expiryDate?: Date;
+    qualityGrade?: string;
     deleted: Boolean
     createdBy: UserDocument["_id"]
     createdAt?: Date;

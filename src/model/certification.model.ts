@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 import { applyPublicIdPlugin } from './plugins/public-id.plugin';
 
 export interface CertificationDocument extends mongoose.Document {
-    code: string;
-    type: string;
+    certificateNumber: string;
+    file: string;
     expiry: Date
     valid?: boolean;
     createdAt?: Date;

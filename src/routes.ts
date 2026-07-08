@@ -27,6 +27,9 @@ import { createAssetHandler, deleteAssetHandler, getAssetHandler, getAssetsHandl
 import { createAssetSchema } from './schema/asset.schema';
 import { createEventHandler, getEventHandler, getEventsHandler } from './controller/event.controller';
 import { createEventSchema } from './schema/event.schema';
+import { createProductHandler, deleteProductHandler, getProductHandler, getProductsHandler, updateProductHandler } from './controller/product.controller';
+import { getRiskAlertsHandler, getRiskAlertHandler, acknowledgeRiskAlertHandler, resolveRiskAlertHandler, getProducerRiskProfileHandler } from './controller/risk-alert.controller';
+import { resolveRiskAlertSchema } from './schema/risk-alert.schema';
 
 export default function(app: Express) {
     app.get('/ping', (req: Request, res: Response) => res.sendStatus(200))
@@ -210,6 +213,74 @@ export default function(app: Express) {
         getEventHandler
     )
 
+    /**
+     * Products routes
+     */
+
+    app.post('/products',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.products.*', 'producer.products.create']),
+        createProductHandler
+    )
+    
+    app.get('/products',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.products.*', 'producer.products.read']),
+        getProductsHandler
+    )
+
+    app.get('/products/:productId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.products.*', 'producer.products.read']),
+        getProductHandler
+    )
+   
+    app.patch('/products/:productId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.products.*', 'producer.products.update']),
+        updateProductHandler
+    )
+
+    app.delete('/products/:productId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.products.*', 'producer.products.delete']),
+        deleteProductHandler
+    )
+
+    /**
+     * Risk Alerts routes
+     */
+
+    app.get('/risk-alerts',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.risk-alerts.*', 'producer.risk-alerts.read']),
+        getRiskAlertsHandler
+    )
+
+    app.get('/risk-alerts/:alertId',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.risk-alerts.*', 'producer.risk-alerts.read']),
+        getRiskAlertHandler
+    )
+
+    app.post('/risk-alerts/:alertId/acknowledge',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.risk-alerts.*', 'producer.risk-alerts.update']),
+        acknowledgeRiskAlertHandler
+    )
+
+    app.post('/risk-alerts/:alertId/resolve',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.risk-alerts.*', 'producer.risk-alerts.update']),
+        validateRequest(resolveRiskAlertSchema),
+        resolveRiskAlertHandler
+    )
+
+    app.get('/producers/:producerId/risk-profile',
+        requiresUser,
+        requiresPermissions(['*', 'producer.*', 'producer.risk-alerts.*', 'producer.risk-alerts.read']),
+        getProducerRiskProfileHandler
+    )
 
     //  Get all users 
     app.post('/users/create-user', 

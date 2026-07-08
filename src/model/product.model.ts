@@ -3,6 +3,8 @@ import { generateCode } from "../utils/utils";
 import { UserDocument } from "./user.model";
 import { productTypes } from "../static/product-types";
 import { applyPublicIdPlugin } from './plugins/public-id.plugin';
+import { LocationDocument } from "./location.model";
+import { ProducerDocument } from "./producer.model";
 
 export interface ProductDocument extends mongoose.Document {
     batch?: mongoose.Schema.Types.ObjectId;
@@ -10,6 +12,10 @@ export interface ProductDocument extends mongoose.Document {
     type: string;
     sourceAsset: mongoose.Schema.Types.ObjectId;
     sourceEvent?: mongoose.Schema.Types.ObjectId;
+    location?: LocationDocument['_id'];
+    name: string;
+    slug: string;
+    producer: ProducerDocument['_id'];
     wholeBatch: boolean;
     quantity: {
         amount: number;
@@ -21,6 +27,7 @@ export interface ProductDocument extends mongoose.Document {
     packingType?: string;
     labelCode?: string;
     createdBy: UserDocument['_id'];
+    deleted?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -41,10 +48,28 @@ const ProductSchema = new mongoose.Schema(
             enum: productTypes.flatMap(type => type.types),
             required: true
         },
+        producer: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Producer',
+            required: true
+        },
         sourceAsset: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Asset',
             required: true
+        },
+        location: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Location',
+        },
+        name: {
+            type: String,
+            required: true
+        },
+        slug: {
+            type: String,
+            unique: true,
+            
         },
         sourceEvent: {
             type: mongoose.Schema.Types.ObjectId,
@@ -61,7 +86,7 @@ const ProductSchema = new mongoose.Schema(
             },
             unit: {
                 type: String,
-                enum: ['kg', 'tons', 'head', 'cartons', 'bags', 'bottles', 'litres', 'gallons', 'pieces'],
+                enum: ['kg', 'tons', 'head', 'cartons', 'crates', 'bags', 'bottles', 'litres', 'gallons', 'pieces', 'other'],
             }
         },
         processingMethod: {
@@ -78,6 +103,10 @@ const ProductSchema = new mongoose.Schema(
         },
         labelCode: {
             type: String
+        },
+        deleted: {
+            type: Boolean,
+            default: false
         },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
